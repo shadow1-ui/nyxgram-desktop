@@ -34,6 +34,15 @@ jobs:
         with:
           submodules: recursive
           path: TBuild/nyxgram-desktop
+      - name: Free disk space without touching the Windows toolchain
+        shell: pwsh
+        run: |
+          $unused = @($env:ANDROID_HOME, "$env:RUNNER_TOOL_CACHE\CodeQL", "$env:RUNNER_TOOL_CACHE\Java_Temurin-Hotspot", "$env:RUNNER_TOOL_CACHE\Go", "$env:RUNNER_TOOL_CACHE\Ruby", "$env:RUNNER_TOOL_CACHE\PyPy")
+          foreach ($path in $unused) { if ($path -and (Test-Path $path)) { Remove-Item $path -Recurse -Force -ErrorAction Continue } }
+          Get-PSDrive C,D | Select-Object Name,Free,Used
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Determine cache key and build mode
         shell: pwsh
         env:

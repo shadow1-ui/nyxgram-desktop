@@ -23,3 +23,7 @@ Other imported upstream bots/platform workflows are disabled, not deleted. There
 Local source/configuration/icon checks are not Windows runtime tests. CI compilation and device QA remain required: login, messaging, stickers/GIF, calls, local passcode, tray/toast, normal Telegram running beside Nyxgram, separate data directory, tg:// unchanged and correct executable. No desktop installer/updater or Android features are claimed by a successful dependency job.
 
 Sources: https://github.com/shadow1-ui/nyxgram-desktop ; original authors/license retained in LICENSE and LEGAL.
+
+## MSYS2 preparation compatibility
+
+Native build tooling now comes from UCRT64 (`mingw-w64-ucrt-x86_64-*`, `ucrt64/bin`) instead of deprecated MINGW64. It supplies external build executables only; the application and its C++ libraries still use MSVC. This fixes the initial dependency-install failure for the unavailable old diffutils package. Python 3.11 is selected explicitly and unused runner tool caches can be removed to provide build space.
