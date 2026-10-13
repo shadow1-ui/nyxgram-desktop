@@ -56,4 +56,40 @@
     <file alias="default_shortcuts-custom.json">../../default_shortcuts-custom.json</file>
     <file alias="org.telegram.desktop.desktop">../../../../lib/xdg/org.telegram.desktop.desktop</file>
   </qresource>
+  <qresource prefix="/nyx">
+    <file alias="icons/original.png">../../nyx/icons/original.png</file>
+    <file alias="icons/original.ico">../../nyx/icons/original.ico</file>
+    <file alias="icons/void.png">../../nyx/icons/void.png</file>
+    <file alias="icons/void.ico">../../nyx/icons/void.ico</file>
+    <file alias="icons/aurora.png">../../nyx/icons/aurora.png</file>
+    <file alias="icons/aurora.ico">../../nyx/icons/aurora.ico</file>
+    <file alias="icons/nebula.png">../../nyx/icons/nebula.png</file>
+    <file alias="icons/nebula.ico">../../nyx/icons/nebula.ico</file>
+    <file alias="icons/eclipse.png">../../nyx/icons/eclipse.png</file>
+    <file alias="icons/eclipse.ico">../../nyx/icons/eclipse.ico</file>
+    <file alias="icons/lunar.png">../../nyx/icons/lunar.png</file>
+    <file alias="icons/lunar.ico">../../nyx/icons/lunar.ico</file>
+    <file alias="icons/midnight.png">../../nyx/icons/midnight.png</file>
+    <file alias="icons/midnight.ico">../../nyx/icons/midnight.ico</file>
+    <file alias="icons/ember.png">../../nyx/icons/ember.png</file>
+    <file alias="icons/ember.ico">../../nyx/icons/ember.ico</file>
+    <file alias="icons/frost.png">../../nyx/icons/frost.png</file>
+    <file alias="icons/frost.ico">../../nyx/icons/frost.ico</file>
+    <file alias="icons/rose.png">../../nyx/icons/rose.png</file>
+    <file alias="icons/rose.ico">../../nyx/icons/rose.ico</file>
+    <file alias="icons/jade.png">../../nyx/icons/jade.png</file>
+    <file alias="icons/jade.ico">../../nyx/icons/jade.ico</file>
+    <file alias="icons/solar.png">../../nyx/icons/solar.png</file>
+    <file alias="icons/solar.ico">../../nyx/icons/solar.ico</file>
+    <file alias="icons/orbit.png">../../nyx/icons/orbit.png</file>
+    <file alias="icons/orbit.ico">../../nyx/icons/orbit.ico</file>
+    <file alias="icons/prism.png">../../nyx/icons/prism.png</file>
+    <file alias="icons/prism.ico">../../nyx/icons/prism.ico</file>
+    <file alias="icons/obsidian.png">../../nyx/icons/obsidian.png</file>
+    <file alias="icons/obsidian.ico">../../nyx/icons/obsidian.ico</file>
+    <file alias="icons/paper.png">../../nyx/icons/paper.png</file>
+    <file alias="icons/paper.ico">../../nyx/icons/paper.ico</file>
+    <file alias="startup.jpg">../../nyx/startup.jpg</file>
+    <file alias="night.tdesktop-theme">../../nyx/night.tdesktop-theme</file>
+  </qresource>
 </RCC>

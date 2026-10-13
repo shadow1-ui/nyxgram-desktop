@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "settings/settings_main.h"
 
 #include "api/api_credits.h"
@@ -1079,6 +1080,7 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 		controller,
 		controller->session().user()));
 
+	AddButtonWithIcon(content, rpl::single(QString("Nyxgram")), st::settingsButton, { &st::menuIconSettings })->addClickHandler([] { Nyxgram::ShowSettings(); });
 	SetupSections(controller, content, showOtherMethod());
 	if (HasInterfaceScale()) {
 		Ui::AddDivider(content);

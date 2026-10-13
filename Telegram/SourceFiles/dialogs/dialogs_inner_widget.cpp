@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "dialogs/dialogs_inner_widget.h"
 
 #include "dialogs/dialogs_three_state_icon.h"
@@ -3214,6 +3215,23 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			fillArchiveSearchMenu(_menu.get());
 		}
 	} else {
+		if (const auto history = row.key.history()) {
+			const auto owner = history->session().uniqueId();
+			const auto peer = history->peer->id.value;
+			const auto weak = base::make_weak(history);
+			_menu->addAction(QString::fromUtf8(Nyxgram::LocalPinRank(owner, peer) >= 0
+				? "Убрать локальное закрепление" : "Закрепить локально · Nyxgram"), [=] {
+				if (const auto strong = weak.get()) {
+					auto ids = Nyxgram::LocalPins(owner);
+					if (Nyxgram::ToggleLocalPin(owner, peer)) {
+						ids.push_back(QString::number(peer));
+						for (const auto &id : ids) {
+							if (auto loaded = strong->session().data().historyLoaded(PeerId(id.toULongLong()))) loaded->updateChatListSortPosition();
+						}
+					}
+				}
+			});
+		}
 		const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 		Window::FillDialogsEntryMenu(
 			_controller,

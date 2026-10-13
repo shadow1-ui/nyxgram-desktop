@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "platform/win/windows_app_user_model_id.h"
 
 #include "platform/win/windows_dlls.h"
@@ -301,6 +302,14 @@ bool validateShortcutAt(const QString &path) {
 	const auto bad2 = !good2 && (toastActivatorPropVar.vt != VT_EMPTY);
 	PropVariantClear(&toastActivatorPropVar);
 	if (good1 && good2) {
+		const auto icon = QDir::toNativeSeparators(Nyxgram::ShortcutIconPath()).toStdWString();
+		WCHAR currentIcon[kMaxFileLen] = {0};
+		int iconIndex = 0;
+		if (!icon.empty() && SUCCEEDED(shellLink->GetIconLocation(currentIcon, kMaxFileLen, &iconIndex))
+			&& (icon != currentIcon || iconIndex != 0)) {
+			if (!SUCCEEDED(shellLink->SetIconLocation(icon.c_str(), 0))
+				|| !SUCCEEDED(persistFile->Save(native.c_str(), TRUE))) return false;
+		}
 		LOG(("App Info: Shortcut validated at \"%1\"").arg(path));
 		return true;
 	} else if (bad1 || bad2) {
@@ -384,6 +393,8 @@ bool ValidateShortcut() {
 		return false;
 	}
 
+	const auto icon = QDir::toNativeSeparators(Nyxgram::ShortcutIconPath()).toStdWString();
+	if (!icon.empty()) shellLink->SetIconLocation(icon.c_str(), 0);
 	hr = shellLink->SetArguments(L"");
 	if (!SUCCEEDED(hr)) {
 		return false;

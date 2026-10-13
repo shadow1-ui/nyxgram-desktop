@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "dialogs/dialogs_entry.h"
 
 #include "dialogs/dialogs_key.h"
@@ -225,7 +226,12 @@ int Entry::lookupPinnedIndex(FilterId filterId) const {
 
 uint64 Entry::computeSortPosition(FilterId filterId) const {
 	const auto index = lookupPinnedIndex(filterId);
-	return index ? PinnedDialogPos(index) : _sortKeyByDate;
+	if (index) return PinnedDialogPos(index);
+	if (const auto history = asHistory()) {
+		const auto rank = Nyxgram::LocalPinRank(session().uniqueId(), history->peer->id.value);
+		if (rank >= 0) return PinnedDialogPos(1000000 + rank);
+	}
+	return _sortKeyByDate;
 }
 
 void Entry::updateChatListExistence() {

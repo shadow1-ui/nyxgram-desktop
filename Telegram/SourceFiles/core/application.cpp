@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "core/application.h"
 
 #include "data/data_abstract_structure.h"
@@ -415,6 +416,7 @@ void Application::run() {
 	}
 
 	processCreatedWindow(_lastActivePrimaryWindow);
+	if (cLaunchMode() != LaunchModeAutoStart) Nyxgram::ShowStartup();
 }
 
 void Application::autoRegisterUrlScheme() {

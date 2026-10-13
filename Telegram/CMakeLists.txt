@@ -253,6 +253,8 @@ PRIVATE
     boxes/peers/replace_boost_box.h
     boxes/peers/verify_peers_box.cpp
     boxes/peers/verify_peers_box.h
+    nyx/nyx_settings.cpp
+    nyx/nyx_settings.h
     boxes/about_box.cpp
     boxes/about_box.h
     boxes/about_sponsored_box.cpp
@@ -2148,4 +2150,10 @@ if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     install(FILES "../lib/xdg/org.telegram.desktop.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.service" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/dbus-1/services")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+endif()
+
+# Nyxgram settings contain formal Russian labels.
+if (MSVC)
+    set_source_files_properties(${src_loc}/nyx/nyx_settings.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
+    set_source_files_properties(${src_loc}/dialogs/dialogs_inner_widget.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
 endif()

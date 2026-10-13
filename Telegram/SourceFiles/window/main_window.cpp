@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "window/main_window.h"
 
 #include "api/api_updates.h"
@@ -116,13 +117,17 @@ const char kOptionNewWindowsSizeAsFirst[] = "new-windows-size-as-first";
 const char kOptionDisableTouchbar[] = "touchbar-disabled";
 
 const QImage &Logo() {
-	static const auto result = QImage(u":/gui/art/logo_256.png"_q);
+	static auto key = QString();
+	static auto result = QImage();
+	if (key != Nyxgram::IconKey() || result.isNull()) {
+		key = Nyxgram::IconKey();
+		result = QImage(Nyxgram::IconPath());
+	}
 	return result;
 }
 
 const QImage &LogoNoMargin() {
-	static const auto result = QImage(u":/gui/art/logo_256_no_margin.png"_q);
-	return result;
+	return Logo();
 }
 
 void ConvertIconToBlack(QImage &image) {
@@ -190,56 +195,10 @@ QIcon CreateOfficialIcon(Main::Session *session) {
 }
 
 QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
-	const auto officialIcon = CreateOfficialIcon(session);
-	if (!officialIcon.isNull() || returnNullIfDefault) {
-		return officialIcon;
-	}
+	Q_UNUSED(session);
+	Q_UNUSED(returnNullIfDefault);
+	return QIcon(Nyxgram::IconPath());
 
-	auto result = QIcon(Ui::PixmapFromImage(base::duplicate(Logo())));
-
-	if constexpr (!Platform::IsLinux()) {
-		return result;
-	}
-
-	const auto iconFromTheme = QIcon::fromTheme(
-		Platform::ApplicationIconName(),
-		result);
-
-	result = QIcon();
-
-	static const auto iconSizes = {
-		16,
-		22,
-		32,
-		48,
-		64,
-		128,
-		256,
-	};
-
-	// Qt's standard QIconLoaderEngine sets availableSizes
-	// to XDG directories sizes, since svg icons are scalable,
-	// they could be only in one XDG folder (like 48x48)
-	// and Qt will set only a 48px icon to the window
-	// even though the icon could be scaled to other sizes.
-	// Thus, scale it manually to the most widespread sizes.
-	for (const auto iconSize : iconSizes) {
-		// We can't use QIcon::actualSize here
-		// since it works incorrectly with svg icon themes
-		const auto iconPixmap = iconFromTheme.pixmap(iconSize);
-
-		const auto iconPixmapSize = iconPixmap.size()
-			/ iconPixmap.devicePixelRatio();
-
-		// Not a svg icon, don't scale it
-		if (iconPixmapSize.width() != iconSize) {
-			return iconFromTheme;
-		}
-
-		result.addPixmap(iconPixmap);
-	}
-
-	return result;
 }
 
 QImage GenerateCounterLayer(CounterLayerArgs &&args) {
