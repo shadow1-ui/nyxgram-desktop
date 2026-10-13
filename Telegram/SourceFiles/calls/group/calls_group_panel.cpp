@@ -2870,6 +2870,9 @@ void Panel::refreshTitle() {
 	}
 	refreshTitleGeometry();
 	if (!_subtitle && mode() == PanelMode::Default) {
+		if (!_members) {
+			setupMembers();
+		}
 		_subtitle.create(
 			widget(),
 			rpl::single(
