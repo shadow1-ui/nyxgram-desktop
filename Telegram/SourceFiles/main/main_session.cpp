@@ -279,7 +279,7 @@ rpl::producer<> Session::downloaderTaskFinished() const {
 }
 
 bool Session::premium() const {
-	return _user->isPremium();
+	return bool(_user->flags() & UserDataFlag::Premium);
 }
 
 bool Session::premiumPossible() const {
@@ -297,7 +297,7 @@ rpl::producer<bool> Session::premiumPossibleValue() const {
 	) | rpl::filter([=](UserData::Flags::Change change) {
 		return (change.diff & UserDataFlag::Premium);
 	}) | rpl::map([=] {
-		return _user->isPremium();
+		return bool(_user->flags() & UserDataFlag::Premium);
 	});
 	return rpl::combine(
 		std::move(premium),

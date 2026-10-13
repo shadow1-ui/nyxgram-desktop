@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "history/history_widget.h"
 
 #include "api/api_editing.h"
@@ -1935,7 +1936,7 @@ void HistoryWidget::fileChosen(ChatHelpers::FileChosen &&data) {
 	if (const auto info = data.document->sticker()
 		; info && info->setType == Data::StickersType::Emoji) {
 		if (data.document->isPremiumEmoji()
-			&& !session().premium()
+			&& !session().premium() && !Nyxgram::LocalPremium()
 			&& (!_peer
 				|| !Data::AllowEmojiWithoutPremium(
 					_peer,

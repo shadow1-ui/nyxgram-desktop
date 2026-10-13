@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "data/data_emoji_statuses.h"
 
 #include "main/main_session.h"
@@ -503,6 +504,10 @@ void EmojiStatuses::set(
 		not_null<PeerData*> peer,
 		EmojiStatusId id,
 		TimeId until) {
+	if (peer->isSelf() && Nyxgram::LocalPremium() && !_owner->session().premium() && !id.collectible) {
+		Nyxgram::SaveLocalStatus(_owner->session().uniqueId(),id.documentId,until);
+		peer->setEmojiStatus(id,until);return;
+	}
 	auto &api = _owner->session().api();
 	auto &requestId = _sentRequests[peer];
 	if (requestId) {

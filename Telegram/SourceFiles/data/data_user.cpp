@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "data/data_user.h"
 
 #include "api/api_credits.h"
@@ -500,7 +501,7 @@ bool UserData::isFake() const {
 }
 
 bool UserData::isPremium() const {
-	return flags() & UserDataFlag::Premium;
+	return (flags() & UserDataFlag::Premium) || (isSelf() && Nyxgram::LocalPremium());
 }
 
 bool UserData::isBotInlineGeo() const {

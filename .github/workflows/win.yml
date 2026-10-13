@@ -127,7 +127,7 @@ jobs:
           Copy-Item "$repo\LICENSE","$repo\LEGAL" $dist
           Copy-Item "$repo\NYXGRAM_PORTABLE_README.txt" "$dist\README.txt"
           Copy-Item "$repo\Telegram\Resources\nyx\icons" "$dist\icons" -Recurse
-          "Nyxgram Desktop 0.2`nSource commit: $env:GITHUB_SHA`nSource: https://github.com/shadow1-ui/nyxgram-desktop`nWindows x64 Release; unsigned; official updates disabled." | Set-Content "$dist\BUILD-INFO.txt"
+          "Nyxgram Desktop 0.2.1`nSource commit: $env:GITHUB_SHA`nSource: https://github.com/shadow1-ui/nyxgram-desktop`nWindows x64 Release; unsigned; official updates disabled." | Set-Content "$dist\BUILD-INFO.txt"
       - uses: actions/upload-artifact@v4
         if: env.BUILD_APP == 'true'
         with:

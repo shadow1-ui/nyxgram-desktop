@@ -602,6 +602,7 @@ bool AddReplyToMessageAction(
 	const auto item = request.quote.item
 		? request.quote.item
 		: request.item;
+	if(item && item->nyxDeleted)return false;
 	const auto topic = item ? item->topic() : nullptr;
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item

@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "history/view/history_view_message.h"
 
 #include "api/api_suggest_post.h"
@@ -1156,6 +1157,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto item = data();
+	struct OpacityRestore { Painter &p; qreal value; ~OpacityRestore(){ p.setOpacity(value); } } opacity{p,p.opacity()};
+	if (item->nyxDeleted) p.setOpacity(p.opacity()*.88);
 	const auto media = this->media();
 
 	const auto hasGesture = context.gestureHorizontal.translation

@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "history/view/controls/history_view_compose_controls.h"
 
 #include "base/call_delayed.h"
@@ -2196,7 +2197,7 @@ void ComposeControls::initTabbedSelector() {
 		if (const auto info = data.document->sticker()
 			; info && info->setType == Data::StickersType::Emoji) {
 			if (data.document->isPremiumEmoji()
-				&& !session().premium()
+				&& !session().premium() && !Nyxgram::LocalPremium()
 				&& (!_history
 					|| !Data::AllowEmojiWithoutPremium(
 						_history->peer,

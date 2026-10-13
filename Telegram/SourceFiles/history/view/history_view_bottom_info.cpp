@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_bottom_info.h"
+#include "nyx/nyx_settings.h"
 
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
@@ -250,6 +251,8 @@ void BottomInfo::paint(
 		authorEditedWidth,
 		outerWidth);
 
+	if(_data.flags & Data::Flag::NyxDeleted){const auto old=p.pen();p.setPen(Nyxgram::DeletedColor());p.drawText(QRect(right,position.y(),st::msgDateFont->width(Nyxgram::DeletedSymbol()),st::msgDateFont->height),Qt::AlignCenter,Nyxgram::DeletedSymbol());p.setPen(old);}
+
 	if (_data.flags & Data::Flag::Pinned) {
 		const auto &icon = inverted
 			? st->historyPinInvertedIcon()
@@ -440,6 +443,7 @@ void BottomInfo::layoutDateText() {
 			Ui::Text::IconEmoji(&st::starIconEmojiSmall)
 		).append(Lang::FormatCountToShort(count).string).append(u", "_q);
 	}
+	if(_data.flags & Data::Flag::NyxDeleted) marked.append(Nyxgram::DeletedSymbol()+QString(" "));
 	marked.append(full);
 	_authorEditedDate.setMarkedText(
 		st::msgDateTextStyle,
@@ -568,6 +572,7 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 
 	auto result = BottomInfo::Data();
 	result.date = message->dateTime();
+	if(item->nyxDeleted) result.flags |= Flag::NyxDeleted;
 	result.effectId = item->effectId();
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;

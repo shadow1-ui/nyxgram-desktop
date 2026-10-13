@@ -2525,6 +2525,7 @@ bool HistoryItem::allowsReschedule() const {
 }
 
 bool HistoryItem::allowsForward() const {
+	if (nyxDeleted) return false;
 	return !isService()
 		&& isRegular()
 		&& !forbidsForward()
@@ -2539,6 +2540,7 @@ bool HistoryItem::isTooOldForEdit(TimeId now) const {
 }
 
 bool HistoryItem::allowsEdit(TimeId now) const {
+	if (nyxDeleted) return false;
 	return !isService()
 		&& canBeEdited()
 		&& !isTooOldForEdit(now)
@@ -2549,6 +2551,7 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 }
 
 bool HistoryItem::allowsEditMedia() const {
+	if (nyxDeleted) return false;
 	return !awaitingVideoProcessing()
 		&& (!_media || _media->allowsEditMedia() || _media->webpage());
 }
@@ -2599,6 +2602,7 @@ bool HistoryItem::forbidsSaving() const {
 }
 
 bool HistoryItem::canDelete() const {
+	if (nyxDeleted) return false;
 	if (isSponsored()) {
 		return false;
 	} else if (IsStoryMsgId(id)) {
@@ -2629,6 +2633,7 @@ bool HistoryItem::canDelete() const {
 }
 
 bool HistoryItem::canDeleteForEveryone(TimeId now) const {
+	if (nyxDeleted) return false;
 	const auto peer = _history->peer;
 	const auto &config = _history->session().serverConfig();
 	const auto messageToMyself = peer->isSelf();
@@ -3534,6 +3539,7 @@ bool HistoryItem::isService() const {
 }
 
 bool HistoryItem::unread(not_null<Data::Thread*> thread) const {
+	if(nyxDeleted)return false;
 	// Messages from myself are always read, unless scheduled.
 	if (_history->peer->isSelf() && !isFromScheduled()) {
 		return false;

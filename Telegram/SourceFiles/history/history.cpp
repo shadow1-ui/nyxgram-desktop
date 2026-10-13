@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_history.h"
+#include "nyx/nyx_settings.h"
 #include "history/history.h"
 
 #include "history/view/history_view_element.h"
@@ -497,6 +499,7 @@ not_null<HistoryItem*> History::createItem(
 		MessageFlags localFlags,
 		bool detachExistingItem,
 		bool newMessage) {
+	Nyxgram::CaptureMessage(session().uniqueId(),peer->id.value,message);
 	if (const auto result = owner().message(peer, id)) {
 		if (detachExistingItem) {
 			result->removeMainView();
@@ -509,6 +512,7 @@ not_null<HistoryItem*> History::createItem(
 	const auto result = message.match([&](const auto &data) {
 		return makeMessage(id, data, localFlags);
 	});
+	result->nyxDeleted = Nyxgram::KeepDeletedMessages() && Nyxgram::IsDeletedCopy(session().uniqueId(),peer->id.value,id.bare);
 	if (newMessage && result->out() && result->isRegular()) {
 		session().topPeers().increment(peer, result->date());
 		if (result->starsPaid()) {
@@ -520,11 +524,12 @@ not_null<HistoryItem*> History::createItem(
 
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
+	const auto copies = Nyxgram::MergeDeletedMessages(this,data);
 	auto result = std::vector<not_null<HistoryItem*>>();
-	result.reserve(data.size());
+	result.reserve(copies.size());
 	const auto localFlags = MessageFlags();
 	const auto detachExistingItem = true;
-	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
+	for (auto i = copies.cend(), e = copies.cbegin(); i != e;) {
 		const auto &data = *--i;
 		const auto id = IdFromMessage(data);
 		if ((id.bare == 1) && (data.type() == mtpc_messageEmpty)) {
@@ -1562,6 +1567,10 @@ void History::addEdgesToSharedMedia() {
 
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
+		if (lastMessageKnown() && !lastMessage()) {
+			const auto local = Nyxgram::MergeDeletedMessages(this,slice);
+			if (!local.isEmpty()) addCreatedOlderSlice(createItems(local));
+		}
 		_loadedAtTop = true;
 		checkLocalMessages();
 		return;

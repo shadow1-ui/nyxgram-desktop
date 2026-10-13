@@ -253,6 +253,8 @@ PRIVATE
     boxes/peers/replace_boost_box.h
     boxes/peers/verify_peers_box.cpp
     boxes/peers/verify_peers_box.h
+    nyx/nyx_history.cpp
+    nyx/nyx_history.h
     nyx/nyx_settings.cpp
     nyx/nyx_settings.h
     boxes/about_box.cpp
@@ -2156,4 +2158,8 @@ endif()
 if (MSVC)
     set_source_files_properties(${src_loc}/nyx/nyx_settings.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
     set_source_files_properties(${src_loc}/dialogs/dialogs_inner_widget.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
+endif()
+
+if (WIN32)
+    target_link_libraries(Telegram PRIVATE Crypt32)
 endif()

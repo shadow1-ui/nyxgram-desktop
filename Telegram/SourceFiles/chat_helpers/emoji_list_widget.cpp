@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
 #include "chat_helpers/emoji_list_widget.h"
 
 #include "api/api_peer_photo.h"
@@ -662,7 +663,7 @@ void EmojiListWidget::applyNextSearchQuery() {
 	}
 	_searchResults.clear();
 	_searchCustomIds.clear();
-	if (_mode != Mode::Full || session().premium()) {
+	if (_mode != Mode::Full || nyxVisualPremium()) {
 		appendPremiumSearchResults();
 	}
 	if (_mode == Mode::Full) {
@@ -1336,7 +1337,7 @@ void EmojiListWidget::paint(
 		QRect clip) {
 	validateEmojiPaintContext(context);
 
-	_paintAsPremium = session().premium();
+	_paintAsPremium = nyxVisualPremium();
 
 	auto fromColumn = floorclamp(
 		clip.x() - _rowsLeft,
@@ -1887,9 +1888,11 @@ void EmojiListWidget::selectEmoji(EmojiChosen data) {
 	_chosen.fire(std::move(data));
 }
 
+bool EmojiListWidget::nyxVisualPremium() const {return session().premium() || Nyxgram::LocalPremium() && (_mode==Mode::Full||_mode==Mode::EmojiStatus||_mode==Mode::TopicIcon);}
+
 void EmojiListWidget::selectCustom(FileChosen data) {
 	const auto document = data.document;
-	const auto skip = (document->isPremiumEmoji() && !session().premium());
+	const auto skip = (document->isPremiumEmoji() && !nyxVisualPremium());
 	if (!skip && _mode == Mode::Full) {
 		auto &settings = Core::App().settings();
 		settings.incrementRecentEmoji({ RecentEmojiDocument{

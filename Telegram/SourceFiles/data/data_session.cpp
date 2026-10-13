@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "nyx/nyx_settings.h"
+#include "nyx/nyx_history.h"
 #include "data/data_session.h"
 
 #include "main/main_session.h"
@@ -746,6 +748,11 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		} else {
 			result->setEmojiStatus(EmojiStatusId());
 		}
+		if (data.is_self() && Nyxgram::LocalPremium() && !data.is_premium()) {
+			const auto doc=Nyxgram::LocalStatusDocument(session().uniqueId());
+			if(doc) result->setEmojiStatus(EmojiStatusId{doc});
+		}
+
 		if (!minimal) {
 			if (const auto botInfoVersion = data.vbot_info_version()) {
 				result->setBotInfoVersion(botInfoVersion->v);
@@ -2626,6 +2633,9 @@ bool Session::updateExistingMessage(const MTPDmessage &data) {
 }
 
 void Session::updateEditedMessage(const MTPMessage &data) {
+	if (data.type() == mtpc_message) {
+		Nyxgram::CaptureMessage(session().uniqueId(), PeerFromMessage(data).value, data);
+	}
 	const auto existing = data.match([](const MTPDmessageEmpty &)
 			-> HistoryItem* {
 		return nullptr;
@@ -2790,7 +2800,7 @@ void Session::processMessagesDeleted(
 		const auto i = list ? list->find(messageId.v) : Messages::iterator();
 		if (list && i != list->end()) {
 			const auto history = i->second->history();
-			i->second->destroy();
+			if (!Nyxgram::RetainDeletedMessage(i->second)) i->second->destroy();
 			if (!history->chatListMessageKnown()) {
 				historiesToCheck.emplace(history);
 			}
@@ -2808,7 +2818,7 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 	for (const auto &messageId : data) {
 		if (const auto item = nonChannelMessage(messageId.v)) {
 			const auto history = item->history();
-			item->destroy();
+			if (!Nyxgram::RetainDeletedMessage(item)) item->destroy();
 			if (!history->chatListMessageKnown()) {
 				historiesToCheck.emplace(history);
 			}

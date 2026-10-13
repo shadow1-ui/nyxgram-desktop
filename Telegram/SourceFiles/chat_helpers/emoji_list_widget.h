@@ -322,6 +322,7 @@ private:
 		const OverEmoji *over,
 		Api::SendOptions options = Api::SendOptions());
 	void selectEmoji(EmojiChosen data);
+	bool nyxVisualPremium() const;
 	void selectCustom(FileChosen data);
 	void paint(Painter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);

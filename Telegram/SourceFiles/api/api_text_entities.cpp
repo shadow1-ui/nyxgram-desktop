@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_text_entities.h"
+#include "nyx/nyx_settings.h"
 
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -339,6 +340,14 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			v.push_back(MTP_messageEntitySpoiler(offset, length));
 		} break;
 		case EntityType::CustomEmoji: {
+			// Local visual access is not a server-side subscription.
+			if (session && option == ConvertOption::SkipLocal
+				&& Nyxgram::LocalPremium() && !session->premium()) {
+				const auto parsed = Data::ParseCustomEmojiData(entity.data());
+				if (!parsed) continue;
+				const auto document = session->data().document(parsed);
+				if (!document->sticker() || document->isPremiumEmoji()) continue;
+			}
 			const auto valid = CustomEmojiEntity(
 				offset,
 				length,

@@ -103,6 +103,7 @@ enum class PaidPostType : uchar {
 
 class HistoryItem final : public RuntimeComposer<HistoryItem> {
 public:
+	bool nyxDeleted = false; // local-only, never serialized into MTProto flags
 	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryItem*> item,
 		const MTPMessageMedia &media);

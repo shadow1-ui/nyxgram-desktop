@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "nyx/nyx_settings.h"
+#include "nyx/nyx_history.h"
 #include "core/application.h"
 
 #include "data/data_abstract_structure.h"
@@ -1794,6 +1795,7 @@ void Application::refreshApplicationIcon() {
 }
 
 void Application::refreshApplicationIcon(Main::Session *session) {
+	if(session && !Nyxgram::KeepDeletedMessages()) Nyxgram::HideDeletedCopies(session);
 	const auto support = session && session->supportMode();
 	Shortcuts::ToggleSupportShortcuts(support);
 	Platform::SetApplicationIcon(Window::CreateIcon(
