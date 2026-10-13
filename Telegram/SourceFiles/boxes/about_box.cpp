@@ -50,7 +50,7 @@ rpl::producer<TextWithEntities> Text2() {
 		lt_github_link,
 		rpl::single(Ui::Text::Link(
 			"GitHub",
-			"https://github.com/telegramdesktop/tdesktop")),
+			"https://github.com/shadow1-ui/nyxgram-desktop")),
 		Ui::Text::WithEntities);
 }
 
@@ -64,7 +64,7 @@ rpl::producer<TextWithEntities> Text3() {
 } // namespace
 
 void AboutBox(not_null<Ui::GenericBox*> box) {
-	box->setTitle(rpl::single(u"Telegram Desktop"_q));
+	box->setTitle(rpl::single(u"Nyxgram Desktop 0.1"_q));
 
 	auto layout = box->verticalLayout();
 

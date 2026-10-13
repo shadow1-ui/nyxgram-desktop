@@ -1,211 +1,134 @@
-name: Windows.
-
+name: Build Nyxgram Desktop (Windows x64)
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '!docs/building-win*.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
-  pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '!docs/building-win*.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
-
+    branches: [master]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+    inputs:
+      dependencies_only:
+        description: 'Только подготовить зависимости, без EXE'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: nyxgram-desktop-windows-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-
   windows:
-    name: Windows
-    runs-on: windows-latest
-
-    strategy:
-      matrix:
-        arch: [Win32, x64]
-        generator: ["", "Ninja Multi-Config"]
-
-    env:
-      UPLOAD_ARTIFACT: "true"
-      ONLY_CACHE: "false"
-      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
-
+    runs-on: windows-2022
+    timeout-minutes: 360
     defaults:
       run:
         shell: cmd
-
+    env:
+      API_ID: ${{ secrets.API_ID }}
+      API_HASH: ${{ secrets.API_HASH }}
     steps:
-      - name: Prepare directories.
+      - name: Prepare separate build folders
         run: |
           mkdir %userprofile%\TBuild\Libraries
           mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-
-      - name: Get repository name.
-        shell: bash
-        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
-
-      - name: Clone.
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
-
-      - name: First set up.
-        shell: bash
+          path: TBuild/nyxgram-desktop
+      - name: Determine cache key and build mode
+        shell: pwsh
+        env:
+          DEPS_ONLY: ${{ inputs.dependencies_only }}
         run: |
-          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
-          [ "${{ matrix.arch }}" != Win32 ] && DOCPATH=$TBUILD/$REPO_NAME/docs/building-win-${{ matrix.arch }}.md
-          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
-          echo "SDK=$SDK" >> $GITHUB_ENV
-
-          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
-          echo "$SDK" >> CACHE_KEY.txt
-          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
-
-          echo "Configurate git for cherry-picks."
-          git config --global user.email "you@example.com"
-          git config --global user.name "Sample"
-
+          $repo = "$env:TBUILD\nyxgram-desktop"
+          $sdk = '10.0.26100.0'
+          "SDK=$sdk" >> $env:GITHUB_ENV
+          $hashes = @('Telegram/build/prepare/prepare.py','Telegram/build/qt_version.py') | ForEach-Object { (Get-FileHash "$repo/$_" -Algorithm SHA256).Hash }
+          $bytes = [Text.Encoding]::UTF8.GetBytes(($hashes -join ':') + ':' + $sdk)
+          $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
+          "CACHE_KEY=$hash" >> $env:GITHUB_ENV
+          $hasApi = $env:API_ID -match '^[1-9][0-9]*$' -and $env:API_HASH -match '^[a-fA-F0-9]{32}$'
+          $buildApp = $hasApi -and $env:DEPS_ONLY -ne 'true'
+          "BUILD_APP=$($buildApp.ToString().ToLower())" >> $env:GITHUB_ENV
+          if (!$hasApi) { Write-Output '::warning::API_ID/API_HASH missing or invalid. Preparing dependencies only; add your Telegram API secrets and run again for the EXE.' }
+          git config --global user.email "nyxgram@users.noreply.github.com"
+          git config --global user.name "Nyxgram Bot"
+          Get-PSDrive C,D | Select-Object Name,Free,Used
       - uses: ilammy/msvc-dev-cmd@v1.13.0
-        name: Native Tools Command Prompt.
         with:
-          arch: ${{ matrix.arch }}
+          arch: x64
           sdk: ${{ env.SDK }}
-
-      - name: NuGet sources.
+      - name: NuGet sources
         run: |
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
-
-      - name: ThirdParty cache.
-        id: cache-third-party
-        uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: thirdparty
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: ${{ runner.OS }}-${{ matrix.arch }}-third-party-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-third-party-
-
-      - name: Libraries cache.
-        id: cache-libs
-        uses: actions/cache@v4
+          key: nyx-windows-x64-thirdparty-${{ env.CACHE_KEY }}
+          restore-keys: nyx-windows-x64-thirdparty-
+      - uses: actions/cache/restore@v4
+        id: libraries
         with:
           path: ${{ env.TBUILD }}\Libraries
-          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
-
-      - name: Libraries.
+          key: nyx-windows-x64-libraries-${{ env.CACHE_KEY }}
+          restore-keys: nyx-windows-x64-libraries-
+      - name: Prepare Windows libraries (first build may be long)
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
           GYP_MSVS_VERSION: 2022
         run: |
           cd %TBUILD%
-          %REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
-
-      - name: Read configuration matrix.
-        shell: bash
+          call nyxgram-desktop\Telegram\build\prepare\win.bat silent
+      - name: Reduce cache size
+        shell: pwsh
         run: |
-          ARTIFACT_NAME="Telegram"
-
-          ARCH=""
-          if [ -n "${{ matrix.arch }}" ]; then
-            case "${{ matrix.arch }}" in
-              Win32) ARCH="x86";;
-              *) ARCH="${{ matrix.arch }}";;
-            esac
-            echo "Architecture from matrix: $ARCH"
-            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.arch }}"
-          fi
-
-          GENERATOR=""
-          if [ -n "${{ matrix.generator }}" ]; then
-            GENERATOR="-G \"${{ matrix.generator }}\""
-            echo "Generator from matrix: $GENERATOR"
-            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.generator }}"
-          fi
-          echo "TDESKTOP_BUILD_GENERATOR=$GENERATOR" >> $GITHUB_ENV
-
-          [ -n "$GENERATOR" ] && ARCH=""
-          echo "TDESKTOP_BUILD_ARCH=$ARCH" >> $GITHUB_ENV
-
-          DEFINE=""
-          if [ -n "${{ matrix.defines }}" ]; then
-            DEFINE="-D ${{ matrix.defines }}=ON"
-            echo "Define from matrix: $DEFINE"
-            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.defines }}"
-          fi
-          echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
-
-          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
-
-          API="-D TDESKTOP_API_TEST=ON"
-          if [ $GITHUB_REF == 'refs/heads/nightly' ]; then
-            echo "Use the open credentials."
-            API="-D TDESKTOP_API_ID=611335 -D TDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c"
-          fi
-          echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
-
-      - name: Free up some disk space.
-        run: |
-          cd %TBUILD%
-          del /S Libraries\*.pdb
-          del /S Libraries\*.pch
-          del /S Libraries\*.obj
-
-      - name: Telegram Desktop build.
-        if: env.ONLY_CACHE == 'false'
-        run: |
-          cd %TBUILD%\%REPO_NAME%\Telegram
-
-          call configure.bat ^
-          %TDESKTOP_BUILD_GENERATOR% ^
-          %TDESKTOP_BUILD_ARCH% ^
-          %TDESKTOP_BUILD_API% ^
-          -D CMAKE_CONFIGURATION_TYPES=Debug ^
-          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
-          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
-          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
-          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
-          %TDESKTOP_BUILD_DEFINE%
-
-          cmake --build ..\out --config Debug --parallel
-
-      - name: Move artifact.
-        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
-        run: |
-          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
-          mkdir artifact
-          move %OUT%\Telegram.exe artifact/
-          move %OUT%\Updater.exe artifact/
-      - uses: actions/upload-artifact@v4
-        name: Upload artifact.
-        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
+          $files = Get-ChildItem "$env:TBUILD\Libraries" -Recurse -File | Where-Object { $_.Extension -in '.pdb','.pch','.obj' }
+          $files | Remove-Item -Force
+          Write-Output "Removed $($files.Count) intermediate files; static libraries retained."
+      - uses: actions/cache/save@v4
+        if: steps.thirdparty.outputs.cache-hit != 'true'
         with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: artifact\
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ steps.thirdparty.outputs.cache-primary-key }}
+      - uses: actions/cache/save@v4
+        if: steps.libraries.outputs.cache-hit != 'true'
+        with:
+          path: ${{ env.TBUILD }}\Libraries
+          key: ${{ steps.libraries.outputs.cache-primary-key }}
+      - name: Compile Nyxgram Desktop Release
+        if: env.BUILD_APP == 'true'
+        run: |
+          cd %TBUILD%\nyxgram-desktop\Telegram
+          call configure.bat x64 -D TDESKTOP_API_TEST=OFF -D TDESKTOP_API_ID=%API_ID% -D TDESKTOP_API_HASH=%API_HASH% -D CMAKE_CONFIGURATION_TYPES=Release -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
+          if errorlevel 1 exit /b 1
+          cmake --build ..\out --config Release --target Telegram --parallel 4
+      - name: Package separate portable client
+        if: env.BUILD_APP == 'true'
+        shell: pwsh
+        run: |
+          $repo = "$env:TBUILD\nyxgram-desktop"
+          $out = "$repo\out\Release"
+          $dist = "$env:GITHUB_WORKSPACE\Nyxgram-Desktop"
+          New-Item -ItemType Directory -Path $dist | Out-Null
+          if (!(Test-Path "$out\Nyxgram.exe")) { throw 'Nyxgram.exe not found' }
+          Copy-Item "$out\Nyxgram.exe" $dist
+          Get-ChildItem "$out\*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination $dist
+          foreach ($dir in @('modules','plugins','platforms')) { if (Test-Path "$out\$dir") { Copy-Item "$out\$dir" $dist -Recurse } }
+          Copy-Item "$repo\LICENSE","$repo\LEGAL" $dist
+          Copy-Item "$repo\NYXGRAM_PORTABLE_README.txt" "$dist\README.txt"
+          "Nyxgram Desktop 0.1`nSource commit: $env:GITHUB_SHA`nSource: https://github.com/shadow1-ui/nyxgram-desktop`nWindows x64 Release; unsigned; official updates disabled." | Set-Content "$dist\BUILD-INFO.txt"
+      - uses: actions/upload-artifact@v4
+        if: env.BUILD_APP == 'true'
+        with:
+          name: Nyxgram-Desktop-${{ github.run_number }}-Windows-x64
+          path: Nyxgram-Desktop/
+          retention-days: 30
+      - name: Summarize actual result
+        shell: pwsh
+        run: |
+          if ($env:BUILD_APP -eq 'true') {
+            'Windows x64 client compiled. Download the portable artifact. On-device testing is still required.' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            'Dependencies only: no EXE was built. Add repository API_ID/API_HASH secrets and run with dependencies_only=false to build the app.' >> $env:GITHUB_STEP_SUMMARY
+          }

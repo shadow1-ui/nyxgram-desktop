@@ -418,9 +418,8 @@ void Application::run() {
 }
 
 void Application::autoRegisterUrlScheme() {
-	if (!OptionSkipUrlSchemeRegister.value()) {
-		InvokeQueued(this, [] { RegisterUrlScheme(); });
-	}
+	// Nyxgram keeps the user's existing Telegram URL handler untouched.
+	// The explicit native registration action remains available.
 }
 
 void Application::showAccount(not_null<Main::Account*> account) {
