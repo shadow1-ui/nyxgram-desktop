@@ -2163,3 +2163,33 @@ endif()
 if (WIN32)
     target_link_libraries(Telegram PRIVATE Crypt32)
 endif()
+
+# Compile Nyxgram's own modules before the large Telegram executable.
+# Use exactly Telegram's include paths, definitions and linked usage requirements.
+add_library(nyx_compile_check OBJECT EXCLUDE_FROM_ALL
+    ${src_loc}/nyx/nyx_history.cpp
+    ${src_loc}/nyx/nyx_settings.cpp
+)
+target_link_libraries(nyx_compile_check PRIVATE
+    $<TARGET_PROPERTY:Telegram,LINK_LIBRARIES>
+)
+target_include_directories(nyx_compile_check PRIVATE
+    $<TARGET_PROPERTY:Telegram,INCLUDE_DIRECTORIES>
+)
+target_compile_definitions(nyx_compile_check PRIVATE
+    $<TARGET_PROPERTY:Telegram,COMPILE_DEFINITIONS>
+)
+target_compile_options(nyx_compile_check PRIVATE
+    $<TARGET_PROPERTY:Telegram,COMPILE_OPTIONS>
+)
+foreach(property CXX_STANDARD CXX_STANDARD_REQUIRED CXX_EXTENSIONS MSVC_RUNTIME_LIBRARY)
+    get_target_property(value Telegram ${property})
+    if (NOT "${value}" STREQUAL "value-NOTFOUND")
+        set_target_properties(nyx_compile_check PROPERTIES ${property} "${value}")
+    endif()
+endforeach()
+target_precompile_headers(nyx_compile_check PRIVATE ${src_loc}/stdafx.h)
+get_target_property(nyx_codegen_dependencies Telegram MANUALLY_ADDED_DEPENDENCIES)
+if (nyx_codegen_dependencies)
+    add_dependencies(nyx_compile_check ${nyx_codegen_dependencies})
+endif()

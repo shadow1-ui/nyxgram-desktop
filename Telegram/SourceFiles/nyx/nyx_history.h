@@ -1,5 +1,5 @@
 #pragma once
-#include "mtproto/scheme.h"
+#include "scheme.h"
 namespace Main {class Session;}
 class History;
 class HistoryItem;

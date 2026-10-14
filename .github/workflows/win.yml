@@ -105,13 +105,22 @@ jobs:
         with:
           path: ${{ env.TBUILD }}\Libraries
           key: ${{ steps.libraries.outputs.cache-primary-key }}
-      - name: Compile Nyxgram Desktop Release
+      - name: Configure Nyxgram Desktop Release
         if: env.BUILD_APP == 'true'
         run: |
           cd %TBUILD%\nyxgram-desktop\Telegram
           call configure.bat x64 -D TDESKTOP_API_TEST=OFF -D TDESKTOP_API_ID=%API_ID% -D TDESKTOP_API_HASH=%API_HASH% -D CMAKE_CONFIGURATION_TYPES=Release -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
           if errorlevel 1 exit /b 1
-          cmake --build ..\out --config Release --target Telegram --parallel 4
+      - name: Check Nyxgram C++ modules before full build
+        if: env.BUILD_APP == 'true'
+        run: |
+          cd %TBUILD%\nyxgram-desktop
+          cmake --build out --config Release --target nyx_compile_check --parallel 4
+      - name: Compile Nyxgram Desktop Release
+        if: env.BUILD_APP == 'true'
+        run: |
+          cd %TBUILD%\nyxgram-desktop
+          cmake --build out --config Release --target Telegram --parallel 4
       - name: Package separate portable client
         if: env.BUILD_APP == 'true'
         shell: pwsh
