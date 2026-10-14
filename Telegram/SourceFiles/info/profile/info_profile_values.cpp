@@ -131,6 +131,7 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 			user,
 			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
+		if (user->isSelf() && Nyxgram::Policy(user->session().uniqueId(), "hidePhone")) return QString::fromUtf8("Номер скрыт на этом устройстве");
 		return Ui::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
 }

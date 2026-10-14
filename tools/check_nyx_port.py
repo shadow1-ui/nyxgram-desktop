@@ -23,5 +23,7 @@ s=read('nyx/nyx_features.cpp')
 for key in ['deriveKeyPbkdf2','210000','pinRetry','HideLockedSessions','featureSessions','startupFolder','QDialogButtonBox::RejectRole']:
  verify(key in s,key)
 verify('!session->premium()' in read('api/api_text_entities.cpp'),'real server entitlement required')
+verify('hidePhone' in read('settings/settings_main.cpp'),'own phone hidden in settings suggestion')
+verify('state.edits.removeIf' in read('nyx/nyx_history.cpp'),'purge prior records on TTL transition')
 verify('NYXGRAM_BUILD_NUMBER' in read('nyx/nyx_updates.cpp'),'fork update build comparison')
 print(f'Nyxgram Windows source integration: {checks} checks PASS (not runtime tests)')

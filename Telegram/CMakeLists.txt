@@ -2174,6 +2174,21 @@ add_library(nyx_compile_check OBJECT EXCLUDE_FROM_ALL
     ${src_loc}/nyx/nyx_updates.cpp
     ${src_loc}/nyx/nyx_history.cpp
     ${src_loc}/nyx/nyx_settings.cpp
+    ${src_loc}/history/history_widget.cpp
+    ${src_loc}/history/history_item.cpp
+    ${src_loc}/history/view/history_view_chat_section.cpp
+    ${src_loc}/history/view/history_view_scheduled_section.cpp
+    ${src_loc}/history/view/history_view_message.cpp
+    ${src_loc}/history/view/history_view_element.cpp
+    ${src_loc}/media/stories/media_stories_reply.cpp
+    ${src_loc}/settings/business/settings_shortcut_messages.cpp
+    ${src_loc}/info/profile/info_profile_actions.cpp
+    ${src_loc}/info/profile/info_profile_values.cpp
+    ${src_loc}/settings/settings_main.cpp
+    ${src_loc}/core/local_url_handlers.cpp
+    ${src_loc}/data/data_replies_list.cpp
+    ${src_loc}/data/data_saved_sublist.cpp
+    ${src_loc}/chat_helpers/emoji_interactions.cpp
 )
 target_link_libraries(nyx_compile_check PRIVATE
     $<TARGET_PROPERTY:Telegram,LINK_LIBRARIES>
@@ -2205,4 +2220,25 @@ endif()
 target_compile_definitions(Telegram PRIVATE NYXGRAM_BUILD_NUMBER=${NYXGRAM_BUILD_NUMBER})
 if (MSVC)
     set_source_files_properties(${src_loc}/nyx/nyx_features.cpp ${src_loc}/nyx/nyx_history.cpp ${src_loc}/nyx/nyx_updates.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
+endif()
+
+if (MSVC)
+    set_source_files_properties(
+        ${src_loc}/history/history_widget.cpp
+        ${src_loc}/history/history_item.cpp
+        ${src_loc}/history/view/history_view_chat_section.cpp
+        ${src_loc}/history/view/history_view_scheduled_section.cpp
+        ${src_loc}/history/view/history_view_message.cpp
+        ${src_loc}/history/view/history_view_element.cpp
+        ${src_loc}/media/stories/media_stories_reply.cpp
+        ${src_loc}/settings/business/settings_shortcut_messages.cpp
+        ${src_loc}/info/profile/info_profile_actions.cpp
+        ${src_loc}/info/profile/info_profile_values.cpp
+        ${src_loc}/settings/settings_main.cpp
+        ${src_loc}/core/local_url_handlers.cpp
+        ${src_loc}/data/data_replies_list.cpp
+        ${src_loc}/data/data_saved_sublist.cpp
+        ${src_loc}/chat_helpers/emoji_interactions.cpp
+        PROPERTIES COMPILE_OPTIONS "/utf-8"
+    )
 endif()

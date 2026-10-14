@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -426,7 +427,7 @@ void SetupValidatePhoneNumberSuggestion(
 		tr::lng_settings_suggestion_phone_number_title(
 			lt_phone,
 			rpl::single(
-				Ui::FormatPhone(controller->session().user()->phone()))),
+				(Nyxgram::Policy(controller->session().uniqueId(), "hidePhone") ? QString::fromUtf8("Номер скрыт") : Ui::FormatPhone(controller->session().user()->phone())))),
 		QMargins(
 			st::boxRowPadding.left()
 				- st::defaultSubsectionTitlePadding.left(),
