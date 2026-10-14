@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1577,7 +1578,7 @@ int Element::displayedDateHeight() const {
 }
 
 bool Element::displayDate() const {
-	return Has<DateBadge>();
+	return !Nyxgram::Policy(data()->history()->session().uniqueId(),"dates") && Has<DateBadge>();
 }
 
 bool Element::isInOneDayWithPrevious() const {
@@ -1698,7 +1699,7 @@ bool Element::countIsTopicRootReply() const {
 
 void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
-	if (item->hideDisplayDate()) {
+	if (item->hideDisplayDate() || Nyxgram::Policy(item->history()->session().uniqueId(),"dates")) {
 		displayDate = false;
 	}
 	if (displayDate && !Has<DateBadge>()) {

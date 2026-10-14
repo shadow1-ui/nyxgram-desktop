@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1795,6 +1796,7 @@ void Application::refreshApplicationIcon() {
 }
 
 void Application::refreshApplicationIcon(Main::Session *session) {
+	Nyxgram::ApplySessionFeatures(session);
 	if(session && !Nyxgram::KeepDeletedMessages()) Nyxgram::HideDeletedCopies(session);
 	const auto support = session && session->supportMode();
 	Shortcuts::ToggleSupportShortcuts(support);

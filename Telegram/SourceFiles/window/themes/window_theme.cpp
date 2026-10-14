@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -758,7 +759,7 @@ void ChatBackground::setPrepared(
 	Expects(prepared.isNull() || GoodImageFormatAndSize(prepared));
 	Expects(gradient.isNull() || GoodImageFormatAndSize(gradient));
 
-	if (!prepared.isNull() && !_paper.isPattern() && _paper.isBlurred()) {
+	if (!Nyxgram::BlurDisabled() && !prepared.isNull() && !_paper.isPattern() && _paper.isBlurred()) {
 		prepared = Ui::PrepareBlurredBackground(std::move(prepared));
 	}
 	if (adjustPaletteRequired()) {

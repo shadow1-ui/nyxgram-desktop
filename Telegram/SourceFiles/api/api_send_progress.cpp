@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -109,6 +110,7 @@ bool SendProgressManager::updated(const Key &key, bool doing) {
 }
 
 void SendProgressManager::send(const Key &key, int progress) {
+	if (Nyxgram::Policy(_session->uniqueId(), "hideTyping")) return;
 	if (skipRequest(key)) {
 		return;
 	}

@@ -342,7 +342,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::CustomEmoji: {
 			// Local visual access is not a server-side subscription.
 			if (session && option == ConvertOption::SkipLocal
-				&& Nyxgram::LocalPremium() && !session->premium()) {
+				&& !session->premium()) {
 				const auto parsed = Data::ParseCustomEmojiData(entity.data());
 				if (!parsed) continue;
 				const auto document = session->data().document(parsed);

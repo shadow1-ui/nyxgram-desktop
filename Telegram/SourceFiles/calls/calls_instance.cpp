@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -197,6 +198,7 @@ Instance::~Instance() {
 }
 
 void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
+	if (!Nyxgram::ConfirmCall(user->session().uniqueId(), user->name(), video)) return;
 	if (activateCurrentCall()) {
 		return;
 	}

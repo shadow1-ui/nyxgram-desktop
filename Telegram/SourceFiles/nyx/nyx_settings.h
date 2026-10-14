@@ -4,8 +4,8 @@
 #include <QtCore/QStringList>
 #include <QtCore/QtGlobal>
 namespace Nyxgram {
-bool LocalPremium();
-bool KeepDeletedMessages();
+bool LocalPremium(quint64 owner=0);
+bool KeepDeletedMessages(quint64 owner=0);
 QColor DeletedColor();
 QString DeletedSymbol();
 void SaveLocalStatus(quint64 owner,quint64 document,int until);

@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: nyxgram-desktop-windows-${{ github.ref }}
   cancel-in-progress: false
@@ -105,11 +105,15 @@ jobs:
         with:
           path: ${{ env.TBUILD }}\Libraries
           key: ${{ steps.libraries.outputs.cache-primary-key }}
+      - name: Check Nyxgram source integration
+        run: |
+          cd %TBUILD%\nyxgram-desktop
+          python tools/check_nyx_port.py
       - name: Configure Nyxgram Desktop Release
         if: env.BUILD_APP == 'true'
         run: |
           cd %TBUILD%\nyxgram-desktop\Telegram
-          call configure.bat x64 -D TDESKTOP_API_TEST=OFF -D TDESKTOP_API_ID=%API_ID% -D TDESKTOP_API_HASH=%API_HASH% -D CMAKE_CONFIGURATION_TYPES=Release -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
+          call configure.bat x64 -D TDESKTOP_API_TEST=OFF -D TDESKTOP_API_ID=%API_ID% -D TDESKTOP_API_HASH=%API_HASH% -D CMAKE_CONFIGURATION_TYPES=Release -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= -D NYXGRAM_BUILD_NUMBER=%GITHUB_RUN_NUMBER%
           if errorlevel 1 exit /b 1
       - name: Check Nyxgram C++ modules before full build
         if: env.BUILD_APP == 'true'
@@ -136,13 +140,39 @@ jobs:
           Copy-Item "$repo\LICENSE","$repo\LEGAL" $dist
           Copy-Item "$repo\NYXGRAM_PORTABLE_README.txt" "$dist\README.txt"
           Copy-Item "$repo\Telegram\Resources\nyx\icons" "$dist\icons" -Recurse
-          "Nyxgram Desktop 0.2.1`nSource commit: $env:GITHUB_SHA`nSource: https://github.com/shadow1-ui/nyxgram-desktop`nWindows x64 Release; unsigned; official updates disabled." | Set-Content "$dist\BUILD-INFO.txt"
+          "Nyxgram Desktop 0.3.0`nSource commit: $env:GITHUB_SHA`nSource: https://github.com/shadow1-ui/nyxgram-desktop`nWindows x64 Release; unsigned; official updates disabled." | Set-Content "$dist\BUILD-INFO.txt"
+      - name: Package verified portable update
+        if: env.BUILD_APP == 'true'
+        shell: pwsh
+        run: |
+          $archive = "Nyxgram-Desktop-$env:GITHUB_RUN_NUMBER-Windows-x64.zip"
+          Compress-Archive -Path "$env:GITHUB_WORKSPACE\Nyxgram-Desktop\*" -DestinationPath $archive
+          $file = Get-Item $archive
+          $manifest = @{package='com.nyxgram.desktop';version='0.3.0';versionCode=[int]$env:GITHUB_RUN_NUMBER;archive=$archive;size=$file.Length;sha256=(Get-FileHash $archive -Algorithm SHA256).Hash.ToLower()}
+          $manifest | ConvertTo-Json | Set-Content nyx-desktop-update.json -Encoding utf8NoBOM
       - uses: actions/upload-artifact@v4
         if: env.BUILD_APP == 'true'
         with:
           name: Nyxgram-Desktop-${{ github.run_number }}-Windows-x64
           path: Nyxgram-Desktop/
           retention-days: 30
+      - name: Upload update package
+        if: env.BUILD_APP == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nyxgram-Desktop-update-${{ github.run_number }}
+          path: |
+            Nyxgram-Desktop-*-Windows-x64.zip
+            nyx-desktop-update.json
+      - name: Prepare draft Nyxgram release
+        if: env.BUILD_APP == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "nyx-desktop-0.3.0-build-$env:GITHUB_RUN_NUMBER"
+          $archive = "Nyxgram-Desktop-$env:GITHUB_RUN_NUMBER-Windows-x64.zip"
+          gh release create $tag $archive nyx-desktop-update.json --draft --title "Nyxgram Desktop 0.3.0" --notes-file "$env:TBUILD\nyxgram-desktop\NYXGRAM_PORTABLE_README.txt" --target $env:GITHUB_SHA --repo $env:GITHUB_REPOSITORY
       - name: Summarize actual result
         shell: pwsh
         run: |

@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1504,6 +1505,9 @@ bool ShortcutMessages::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
 		std::optional<MsgId> localId) {
+	if (!Nyxgram::ConfirmMedia(document, _history->peer->id.value, options.nyxMediaApproved)) return false;
+	options.nyxMediaApproved = true;
+
 	if (showPremiumRequired()) {
 		return false;
 	}
@@ -1554,6 +1558,9 @@ void ShortcutMessages::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
+	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), _history->peer->id.value, options.nyxMediaApproved)) return ;
+	options.nyxMediaApproved = true;
+
 	if (showPremiumRequired()) {
 		return;
 	}

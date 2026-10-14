@@ -1,3 +1,5 @@
+#include "nyx/nyx_features.h"
+#include "nyx/nyx_history.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1293,6 +1295,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		list,
 		st::popupMenuWithIcons);
 
+	if(item&&item->isRegular()) {const auto session=&item->history()->session();const auto weak=base::make_weak(session);const auto peer=item->history()->peer->id.value;const auto mid=item->id.bare;result->addAction(QString::fromUtf8("История сообщения · Nyxgram"),[weak,peer,mid]{if(weak)Nyxgram::ShowLocalHistory(weak.get(),peer,mid);});}
 	AddReplyToMessageAction(result, request, list);
 	AddTodoListAction(result, request, list);
 

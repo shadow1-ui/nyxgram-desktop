@@ -2197,7 +2197,7 @@ void ComposeControls::initTabbedSelector() {
 		if (const auto info = data.document->sticker()
 			; info && info->setType == Data::StickersType::Emoji) {
 			if (data.document->isPremiumEmoji()
-				&& !session().premium() && !Nyxgram::LocalPremium()
+				&& !session().premium() && !Nyxgram::LocalPremium(session().uniqueId())
 				&& (!_history
 					|| !Data::AllowEmojiWithoutPremium(
 						_history->peer,

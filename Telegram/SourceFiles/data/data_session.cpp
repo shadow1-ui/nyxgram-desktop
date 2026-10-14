@@ -748,7 +748,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		} else {
 			result->setEmojiStatus(EmojiStatusId());
 		}
-		if (data.is_self() && Nyxgram::LocalPremium() && !data.is_premium()) {
+		if (data.is_self() && Nyxgram::LocalPremium(session().uniqueId()) && !data.is_premium()) {
 			const auto doc=Nyxgram::LocalStatusDocument(session().uniqueId());
 			if(doc) result->setEmojiStatus(EmojiStatusId{doc});
 		}

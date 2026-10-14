@@ -253,6 +253,9 @@ PRIVATE
     boxes/peers/replace_boost_box.h
     boxes/peers/verify_peers_box.cpp
     boxes/peers/verify_peers_box.h
+    nyx/nyx_features.cpp
+    nyx/nyx_features.h
+    nyx/nyx_updates.cpp
     nyx/nyx_history.cpp
     nyx/nyx_history.h
     nyx/nyx_settings.cpp
@@ -2167,6 +2170,8 @@ endif()
 # Compile Nyxgram's own modules before the large Telegram executable.
 # Use exactly Telegram's include paths, definitions and linked usage requirements.
 add_library(nyx_compile_check OBJECT EXCLUDE_FROM_ALL
+    ${src_loc}/nyx/nyx_features.cpp
+    ${src_loc}/nyx/nyx_updates.cpp
     ${src_loc}/nyx/nyx_history.cpp
     ${src_loc}/nyx/nyx_settings.cpp
 )
@@ -2192,4 +2197,12 @@ target_precompile_headers(nyx_compile_check PRIVATE ${src_loc}/stdafx.h)
 get_target_property(nyx_codegen_dependencies Telegram MANUALLY_ADDED_DEPENDENCIES)
 if (nyx_codegen_dependencies)
     add_dependencies(nyx_compile_check ${nyx_codegen_dependencies})
+endif()
+
+if (NOT DEFINED NYXGRAM_BUILD_NUMBER)
+    set(NYXGRAM_BUILD_NUMBER 0)
+endif()
+target_compile_definitions(Telegram PRIVATE NYXGRAM_BUILD_NUMBER=${NYXGRAM_BUILD_NUMBER})
+if (MSVC)
+    set_source_files_properties(${src_loc}/nyx/nyx_features.cpp ${src_loc}/nyx/nyx_history.cpp ${src_loc}/nyx/nyx_updates.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
 endif()

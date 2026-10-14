@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -691,6 +692,11 @@ void Histories::sendReadRequests() {
 }
 
 void Histories::sendReadRequest(not_null<History*> history, State &state) {
+	if (Nyxgram::Policy(session().uniqueId(), "hideRead")) {
+		state.willReadTill = 0; state.willReadWhen = 0;
+		return;
+	}
+
 	Expects(state.willReadTill > state.sentReadTill);
 
 	const auto tillId = state.sentReadTill = base::take(state.willReadTill);

@@ -501,7 +501,7 @@ bool UserData::isFake() const {
 }
 
 bool UserData::isPremium() const {
-	return (flags() & UserDataFlag::Premium) || (isSelf() && Nyxgram::LocalPremium());
+	return (flags() & UserDataFlag::Premium) || (isSelf() && Nyxgram::LocalPremium(session().uniqueId()));
 }
 
 bool UserData::isBotInlineGeo() const {

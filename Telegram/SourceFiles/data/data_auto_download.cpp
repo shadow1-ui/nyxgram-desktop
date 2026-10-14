@@ -1,3 +1,5 @@
+#include "nyx/nyx_features.h"
+#include "main/main_session.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -263,6 +265,7 @@ bool Should(
 		const Full &data,
 		Source source,
 		not_null<DocumentData*> document) {
+	if (Nyxgram::Policy(document->session().uniqueId(), "noDownloads")) return false;
 	if (document->sticker() || document->isGifv()) {
 		return true;
 	} else if (document->isVoiceMessage()
@@ -284,6 +287,7 @@ bool Should(
 bool Should(
 		const Full &data,
 		not_null<DocumentData*> document) {
+	if (Nyxgram::Policy(document->session().uniqueId(), "noDownloads")) return false;
 	if (document->sticker()) {
 		return true;
 	}
@@ -296,6 +300,7 @@ bool Should(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
+	if (Nyxgram::Policy(peer->session().uniqueId(), "noDownloads")) return false;
 	return data.shouldDownload(
 		SourceFromPeer(peer),
 		Type::Photo,
@@ -306,6 +311,7 @@ bool ShouldAutoPlay(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<DocumentData*> document) {
+	if (Nyxgram::Policy(peer->session().uniqueId(), document->isGifv()?"noGifs":"noVideos")) return false;
 	return document->sticker() || data.shouldDownload(
 		SourceFromPeer(peer),
 		AutoPlayTypeFromDocument(document),
@@ -316,6 +322,7 @@ bool ShouldAutoPlay(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
+	if (Nyxgram::Policy(peer->session().uniqueId(), "noVideos")) return false;
 	const auto source = SourceFromPeer(peer);
 	const auto size = photo->videoByteSize(PhotoSize::Large);
 	return photo->hasVideo()

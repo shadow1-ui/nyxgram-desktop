@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1383,6 +1384,7 @@ void Stories::checkQuitPreventFinished() {
 }
 
 void Stories::sendMarkAsReadRequests() {
+	if (Nyxgram::Policy(_owner->session().uniqueId(), "storyGhost")) { _markReadTimer.cancel(); _markReadPending.clear(); checkQuitPreventFinished(); return; }
 	_markReadTimer.cancel();
 	for (auto i = begin(_markReadPending); i != end(_markReadPending);) {
 		const auto peerId = *i;
@@ -1399,6 +1401,7 @@ void Stories::sendMarkAsReadRequests() {
 }
 
 void Stories::sendIncrementViewsRequests() {
+	if (Nyxgram::Policy(_owner->session().uniqueId(), "storyGhost")) { _incrementViewsTimer.cancel(); _incrementViewsPending.clear(); checkQuitPreventFinished(); return; }
 	if (_incrementViewsPending.empty()) {
 		return;
 	}

@@ -59,6 +59,7 @@ public:
 	// inline bot result. If it returns true you need to send this result.
 	bool onChoose(Layout::ItemBase *layout);
 
+	DocumentData *nyxPreviewDocument() const { return _document; }
 	Media::View::OpenRequest openRequest();
 	void cancelFile();
 

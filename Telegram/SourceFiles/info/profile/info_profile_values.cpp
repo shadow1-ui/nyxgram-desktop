@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -145,6 +146,7 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 			const QString &username,
 			const QString &about,
 			const QString &hidden) {
+        if (user->isSelf() && Nyxgram::Policy(user->session().uniqueId(), "hidePhone")) return Ui::Text::WithEntities(QString::fromUtf8("Номер скрыт на этом устройстве"));
 		if (phone.text.isEmpty() && username.isEmpty() && about.isEmpty()) {
 			return Ui::Text::WithEntities(hidden);
 		} else if (IsCollectiblePhone(user)) {

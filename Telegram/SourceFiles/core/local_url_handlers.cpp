@@ -1567,6 +1567,8 @@ bool ResolveTonSettings(
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 	static auto Result = std::vector<LocalUrlHandler>{
+        {QString("^openmessage/?\\?user_id=([0-9]+)(&.*)?$"), [](Window::SessionController *controller,const Match &match,const QVariant &){if(!controller)return false;const auto id=UserId(match->captured(1).toULongLong());if(const auto user=controller->session().data().userLoaded(id))controller->showPeerInfo(user);else controller->showToast(QString::fromUtf8("Профиль недоступен: ссылка по ID требует сохранённых данных доступа."));return true;}},
+
 		{
 			u"^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
 			JoinGroupByHash

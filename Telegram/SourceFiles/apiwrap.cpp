@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1308,6 +1309,7 @@ void ApiWrap::markContentsRead(
 			markedIds.push_back(MTP_int(item->id));
 		}
 	}
+	if (Nyxgram::Policy(_session->uniqueId(), "hideRead")) return;
 	if (!markedIds.isEmpty()) {
 		request(MTPmessages_ReadMessageContents(
 			MTP_vector<MTPint>(markedIds)
@@ -1327,6 +1329,7 @@ void ApiWrap::markContentsRead(not_null<HistoryItem*> item) {
 	if (!item->markContentsRead(true) || !item->isRegular()) {
 		return;
 	}
+	if (Nyxgram::Policy(_session->uniqueId(), "hideRead")) return;
 	const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
 	if (const auto channel = item->history()->peer->asChannel()) {
 		request(MTPchannels_ReadMessageContents(
@@ -4177,6 +4180,9 @@ void ApiWrap::sendInlineResult(
 		SendAction action,
 		std::optional<MsgId> localMessageId,
 		Fn<void(bool)> done) {
+	if (!Nyxgram::ConfirmMedia(data->nyxPreviewDocument(), action.history->peer->id.value, action.options.nyxMediaApproved)) { if (done) done(false); return; }
+	action.options.nyxMediaApproved = true;
+
 	sendAction(action);
 
 	const auto history = action.history;

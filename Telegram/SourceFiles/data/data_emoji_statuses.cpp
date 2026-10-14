@@ -504,7 +504,7 @@ void EmojiStatuses::set(
 		not_null<PeerData*> peer,
 		EmojiStatusId id,
 		TimeId until) {
-	if (peer->isSelf() && Nyxgram::LocalPremium() && !_owner->session().premium() && !id.collectible) {
+	if (peer->isSelf() && Nyxgram::LocalPremium(_owner->session().uniqueId()) && !_owner->session().premium() && !id.collectible) {
 		Nyxgram::SaveLocalStatus(_owner->session().uniqueId(),id.documentId,until);
 		peer->setEmojiStatus(id,until);return;
 	}

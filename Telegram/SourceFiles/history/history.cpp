@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "nyx/nyx_history.h"
+#include "nyx/nyx_features.h"
 #include "nyx/nyx_settings.h"
 #include "history/history.h"
 
@@ -512,7 +513,8 @@ not_null<HistoryItem*> History::createItem(
 	const auto result = message.match([&](const auto &data) {
 		return makeMessage(id, data, localFlags);
 	});
-	result->nyxDeleted = Nyxgram::KeepDeletedMessages() && Nyxgram::IsDeletedCopy(session().uniqueId(),peer->id.value,id.bare);
+	Nyxgram::RestoreLocalEmoji(result);
+	result->nyxDeleted = Nyxgram::KeepDeletedMessages(session().uniqueId()) && Nyxgram::ArchiveAllowed(session().uniqueId()) && Nyxgram::IsDeletedCopy(session().uniqueId(),peer->id.value,id.bare);
 	if (newMessage && result->out() && result->isRegular()) {
 		session().topPeers().increment(peer, result->date());
 		if (result->starsPaid()) {

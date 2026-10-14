@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "nyx/nyx_settings.h"
+#include "nyx/nyx_features.h"
 #include "history/view/history_view_message.h"
 
 #include "api/api_suggest_post.h"
@@ -2257,6 +2258,7 @@ PointState Message::pointState(QPoint point) const {
 }
 
 bool Message::displayFromPhoto() const {
+	if(Nyxgram::Policy(data()->history()->session().uniqueId(),"avatars"))return false;
 	return hasFromPhoto() && !isAttachedToNext();
 }
 
@@ -3465,6 +3467,8 @@ void Message::drawInfo(
 		int bottom,
 		int width,
 		InfoDisplayType type) const {
+    const auto nyxItem=data();const auto nyxMedia=nyxItem->media();const auto nyxDoc=nyxMedia?nyxMedia->document():nullptr;const auto nyxOwner=nyxItem->history()->session().uniqueId();
+    if(!nyxItem->nyxDeleted&&!nyxItem->hasFailed()&&nyxItem->isRegular()&&nyxItem->id.bare>0&&nyxDoc&&((nyxDoc->sticker()&&Nyxgram::Policy(nyxOwner,"stickerTime"))||(nyxDoc->isGifv()&&Nyxgram::Policy(nyxOwner,"gifTime"))||(nyxDoc->isVideoMessage()&&Nyxgram::Policy(nyxOwner,"roundTime"))))return;
 	p.setFont(st::msgDateFont);
 
 	const auto st = context.st;

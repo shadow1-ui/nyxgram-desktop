@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1936,7 +1937,7 @@ void HistoryWidget::fileChosen(ChatHelpers::FileChosen &&data) {
 	if (const auto info = data.document->sticker()
 		; info && info->setType == Data::StickersType::Emoji) {
 		if (data.document->isPremiumEmoji()
-			&& !session().premium() && !Nyxgram::LocalPremium()
+			&& !session().premium() && !Nyxgram::LocalPremium(session().uniqueId())
 			&& (!_peer
 				|| !Data::AllowEmojiWithoutPremium(
 					_peer,
@@ -7710,6 +7711,9 @@ void HistoryWidget::fieldTabbed() {
 }
 
 void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
+	if (_peer && !Nyxgram::ConfirmMedia(result.result->nyxPreviewDocument(), _peer->id.value, result.options.nyxMediaApproved)) return;
+	result.options.nyxMediaApproved = true;
+
 	if (!_peer || !_canSendMessages) {
 		return;
 	} else if (showSlowmodeError()) {
@@ -8327,6 +8331,9 @@ bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
+	if (_peer && !Nyxgram::ConfirmMedia(document, _peer->id.value, messageToSend.action.options.nyxMediaApproved)) return false;
+	messageToSend.action.options.nyxMediaApproved = true;
+
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::SendStickers)
 		: Data::SendError();

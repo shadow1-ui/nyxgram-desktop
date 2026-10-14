@@ -1888,7 +1888,7 @@ void EmojiListWidget::selectEmoji(EmojiChosen data) {
 	_chosen.fire(std::move(data));
 }
 
-bool EmojiListWidget::nyxVisualPremium() const {return session().premium() || Nyxgram::LocalPremium() && (_mode==Mode::Full||_mode==Mode::EmojiStatus||_mode==Mode::TopicIcon);}
+bool EmojiListWidget::nyxVisualPremium() const {return session().premium() || Nyxgram::LocalPremium(session().uniqueId()) && (_mode==Mode::Full||_mode==Mode::EmojiStatus||_mode==Mode::TopicIcon);}
 
 void EmojiListWidget::selectCustom(FileChosen data) {
 	const auto document = data.document;

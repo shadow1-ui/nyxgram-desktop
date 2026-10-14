@@ -1,3 +1,4 @@
+#include "nyx/nyx_history.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -2110,6 +2111,7 @@ void HistoryItem::applyEdition(
 }
 
 void HistoryItem::applySentMessage(const MTPDmessage &data) {
+	Nyxgram::RememberLocalEmoji(this);
 	if (data.is_invert_media()) {
 		_flags |= MessageFlag::InvertMedia;
 	} else {
@@ -2161,12 +2163,14 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	_history->owner().notifyItemDataChange(this);
 	_history->owner().requestItemTextRefresh(this);
 	_history->owner().updateDependentMessages(this);
+	Nyxgram::RestoreLocalEmoji(this);
 }
 
 void HistoryItem::applySentMessage(
 		const QString &text,
 		const MTPDupdateShortSentMessage &data,
 		bool wasAlready) {
+	Nyxgram::RememberLocalEmoji(this);
 	updateSentContent({
 		text,
 		Api::EntitiesFromMTP(
@@ -2184,6 +2188,7 @@ void HistoryItem::applySentMessage(
 	} else {
 		applyTTL(0);
 	}
+	Nyxgram::RestoreLocalEmoji(this);
 }
 
 void HistoryItem::updateSentContent(
@@ -2472,6 +2477,7 @@ void HistoryItem::setRealId(MsgId newId) {
 
 	const auto oldId = std::exchange(id, newId);
 	_flags &= ~(MessageFlag::BeingSent | MessageFlag::Local);
+	Nyxgram::RememberLocalEmoji(this);
 	if (isBusinessShortcut()) {
 		_date = 0;
 	}

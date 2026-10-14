@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1652,6 +1653,9 @@ bool ChatWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
+	if (!Nyxgram::ConfirmMedia(document, _peer->id.value, messageToSend.action.options.nyxMediaApproved)) return false;
+	messageToSend.action.options.nyxMediaApproved = true;
+
 	const auto error = Data::RestrictionError(
 		_peer,
 		ChatRestriction::SendStickers);
@@ -1745,6 +1749,9 @@ void ChatWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
+	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), _peer->id.value, options.nyxMediaApproved)) return ;
+	options.nyxMediaApproved = true;
+
 	const auto withPaymentApproved = [=](int approved) {
 		auto copy = options;
 		copy.starsApproved = approved;

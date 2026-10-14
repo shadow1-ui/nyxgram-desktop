@@ -1,5 +1,6 @@
 // Nyxgram-only visual preferences and local ordering. No subscription or MTProto changes.
 #include "nyx/nyx_settings.h"
+#include "nyx/nyx_features.h"
 #include "nyx/nyx_history.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
@@ -127,8 +128,8 @@ private:
  QElapsedTimer elapsed;
 };
 }
-bool LocalPremium(){return Prefs().value("localPremium",false).toBool();}
-bool KeepDeletedMessages(){return Prefs().value("keepDeleted",false).toBool();}
+bool LocalPremium(quint64 owner){if(!owner){const auto s=ActiveSession();owner=s?s->uniqueId():0;}return owner&&Policy(owner,"localPremium",Prefs().value("localPremium",false).toBool());}
+bool KeepDeletedMessages(quint64 owner){if(!owner)if(auto s=ActiveFeatureSession())owner=s->uniqueId();return Policy(owner,"keepDeleted",Prefs().value("keepDeleted",false).toBool());}
 QColor DeletedColor(){return QColor(Prefs().value("deletedColor","#d976a6").toString());}
 QString DeletedSymbol(){const QStringList symbols={QString::fromUtf8("✕"),QString::fromUtf8("⌫"),QString::fromUtf8("●"),QString::fromUtf8("▱")};return symbols[qBound(0,Prefs().value("deletedIcon",0).toInt(),3)];}
 void SaveLocalStatus(quint64 owner,quint64 document,int until){Prefs().setValue(QString("status/%1/doc").arg(owner),QString::number(document));Prefs().setValue(QString("status/%1/until").arg(owner),until);Prefs().sync();}
@@ -161,7 +162,7 @@ void ShowSettings() {
  static QPointer<QDialog> open;
  if (open) { open->raise();open->activateWindow();return; }
  auto dialog = new QDialog(QApplication::activeWindow());open=dialog;
- dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowTitle("Nyxgram · 0.2.1");dialog->setWindowIcon(QIcon(IconPath()));dialog->resize(600,690);
+ dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowTitle("Nyxgram · 0.3.0");dialog->setWindowIcon(QIcon(IconPath()));dialog->resize(600,690);
  dialog->setStyleSheet("QDialog, QWidget#nyxBody {background:#0b1020;color:#f1f3fa;} QLabel,QCheckBox {color:#f1f3fa;} QToolButton,QPushButton {background:#141b2d;color:#f1f3fa;border:1px solid #36445e;border-radius:8px;padding:8px;} QToolButton:checked {border:2px solid #a98bfa;background:#26324a;} QToolButton:hover,QPushButton:hover {background:#26324a;} QCheckBox {spacing:10px;padding:10px 0;} QCheckBox::indicator {width:22px;height:22px;} QScrollArea {border:0;}");
  auto root = new QVBoxLayout(dialog); root->setContentsMargins(24,24,24,24);root->setSpacing(16);
  auto area = new QScrollArea(dialog);area->setWidgetResizable(true);root->addWidget(area);
@@ -183,14 +184,17 @@ void ShowSettings() {
 #endif
   });
  }
- auto premium=new QCheckBox(QString::fromUtf8("Локальный Telegram Premium"));premium->setChecked(Prefs().value("localPremium",false).toBool());layout->addWidget(premium);
+ auto ghost=new QCheckBox(QString::fromUtf8("Призрачный режим"));const auto current=ActiveFeatureSession();const auto owner=current?current->uniqueId():0;ghost->setChecked(Policy(owner,"hideRead")&&Policy(owner,"hideOnline")&&Policy(owner,"hideTyping"));layout->insertWidget(0,ghost);QObject::connect(ghost,&QCheckBox::toggled,dialog,[owner](bool on){for(const auto &key:{"hideRead","hideOnline","hideTyping"})SetPolicy(owner,key,on);});
+ auto features=new QPushButton(QString::fromUtf8("Приватность · Информация · История · Производительность"));layout->insertWidget(1,features);QObject::connect(features,&QPushButton::clicked,dialog,[dialog]{ShowFeatures(dialog);});
+ auto accountTimer=new QTimer(dialog);QObject::connect(accountTimer,&QTimer::timeout,dialog,[=]{const auto active=ActiveFeatureSession();if(!active||active->uniqueId()!=owner)dialog->close();});accountTimer->start(100);
+ auto premium=new QCheckBox(QString::fromUtf8("Локальный Telegram Premium"));premium->setChecked(LocalPremium(owner));layout->addWidget(premium);
  auto note=label(premium->isChecked()?"Локальная звезда Premium, выбор эмодзи и локальный эмодзи-статус включены. Серверная подписка не меняется.":"Звезда Premium в собственном профиле, выбор анимированных эмодзи и локальный эмодзи-статус. Другие пользователи не видят локальный статус. Серверные лимиты, бусты, расшифровка и платные реакции не меняются.");
- QObject::connect(premium,&QCheckBox::toggled,dialog,[=](bool checked){Prefs().setValue("localPremium",checked);Prefs().sync();RefreshLocalProfile();note->setText(QString::fromUtf8(checked?"Локальная звезда Premium, выбор эмодзи и локальный эмодзи-статус включены. Серверная подписка не меняется.":"Локальный Premium выключен. Бесплатные иконки остаются доступны."));});
+ QObject::connect(premium,&QCheckBox::toggled,dialog,[=](bool checked){SetPolicy(owner,"localPremium",checked);RefreshLocalProfile();note->setText(QString::fromUtf8(checked?"Локальная звезда Premium, выбор эмодзи и локальный эмодзи-статус включены. Серверная подписка не меняется.":"Локальный Premium выключен. Бесплатные иконки остаются доступны."));});
  auto deleted=new QCheckBox(QString::fromUtf8("Показывать удалённые сообщения в чатах"));deleted->setChecked(KeepDeletedMessages());layout->addWidget(deleted);
- QObject::connect(deleted,&QCheckBox::toggled,dialog,[](bool checked){Prefs().setValue("keepDeleted",checked);Prefs().sync();if(!checked&&Core::App().domain().started()&&Core::App().domain().active().sessionExists())HideDeletedCopies(&Core::App().domain().active().session());});
+ QObject::connect(deleted,&QCheckBox::toggled,dialog,[owner](bool checked){SetPolicy(owner,"keepDeleted",checked);if(!checked&&Core::App().domain().started()&&Core::App().domain().active().sessionExists())HideDeletedCopies(&Core::App().domain().active().session());});
  label("После удаления сообщение остаётся на месте: немного приглушённое, со значком рядом со временем. Копии шифруются для текущего пользователя Windows. Секретные, одноразовые сообщения и сообщения с таймером не сохраняются. Только полученные на этом устройстве сообщения; до 5000 копий / 8 МБ метаданных на аккаунт.");
  auto clearCopies=new QPushButton(QString::fromUtf8("Очистить локальные копии удалённых сообщений"));layout->addWidget(clearCopies);
- QObject::connect(clearCopies,&QPushButton::clicked,dialog,[dialog]{if(QMessageBox::question(dialog,"Nyxgram",QString::fromUtf8("Удалить все сохранённые копии текущего аккаунта на этом компьютере? Сообщения на сервере не изменятся."))==QMessageBox::Yes)ClearDeletedCopies(ActiveSession());});
+ QObject::connect(clearCopies,&QPushButton::clicked,dialog,[dialog]{if(auto s=ActiveSession();s&&UnlockArchive(s)&&QMessageBox::question(dialog,"Nyxgram",QString::fromUtf8("Удалить все сохранённые копии текущего аккаунта на этом компьютере? Сообщения на сервере не изменятся."))==QMessageBox::Yes)ClearDeletedCopies(s);});
  auto marks=new QComboBox(body);marks->addItems({QString::fromUtf8("✕ Крестик"),QString::fromUtf8("⌫ Удаление"),QString::fromUtf8("● Точка"),QString::fromUtf8("▱ Контур")});marks->setCurrentIndex(Prefs().value("deletedIcon",0).toInt());layout->addWidget(marks);
  QObject::connect(marks,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[](int index){Prefs().setValue("deletedIcon",index);RefreshDeletedCopies(ActiveSession());});
  auto colors=new QComboBox(body);colors->addItems({QString::fromUtf8("Розовый"),QString::fromUtf8("Лавандовый"),QString::fromUtf8("Голубой"),QString::fromUtf8("Серый")});const QStringList colorValues={"#d976a6","#a98bfa","#70d9e8","#b7bed2"};colors->setCurrentIndex(qMax(0,colorValues.indexOf(Prefs().value("deletedColor","#d976a6").toString())));layout->addWidget(colors);
