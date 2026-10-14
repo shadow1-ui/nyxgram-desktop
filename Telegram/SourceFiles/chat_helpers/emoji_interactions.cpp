@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -255,6 +256,7 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 		crl::time now,
 		not_null<HistoryItem*> item,
 		std::vector<Animation> &animations) {
+	if (Nyxgram::Policy(_session->uniqueId(), "hideTyping")) { animations.clear(); return; }
 	Expects(!animations.empty());
 
 	const auto firstStartedAt = animations.front().startedAt;
@@ -418,6 +420,7 @@ void EmojiInteractions::setWaitingForDownload(bool waiting) {
 }
 
 void EmojiInteractions::playStarted(not_null<PeerData*> peer, QString emoji) {
+	if (Nyxgram::Policy(_session->uniqueId(), "hideTyping")) return;
 	auto &map = _playStarted[peer];
 	const auto i = map.find(emoji);
 	const auto now = crl::now();

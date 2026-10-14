@@ -1797,7 +1797,7 @@ void Application::refreshApplicationIcon() {
 
 void Application::refreshApplicationIcon(Main::Session *session) {
 	Nyxgram::ApplySessionFeatures(session);
-	if(session && !Nyxgram::KeepDeletedMessages()) Nyxgram::HideDeletedCopies(session);
+	if(session && !Nyxgram::KeepDeletedMessages(session->uniqueId())) Nyxgram::HideDeletedCopies(session);
 	const auto support = session && session->supportMode();
 	Shortcuts::ToggleSupportShortcuts(support);
 	Platform::SetApplicationIcon(Window::CreateIcon(

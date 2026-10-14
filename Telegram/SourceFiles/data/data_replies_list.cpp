@@ -1,3 +1,4 @@
+#include "nyx/nyx_features.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -1000,6 +1001,8 @@ void RepliesList::sendReadTillRequest() {
 	}
 	const auto api = &_history->session().api();
 	api->request(base::take(_readRequestId)).cancel();
+
+	if (Nyxgram::Policy(_history->session().uniqueId(), "hideRead")) return;
 
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
 		_history->peer->input,

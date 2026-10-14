@@ -11,6 +11,8 @@ for file in ['history/history_widget.cpp','history/view/history_view_chat_sectio
  s=read(file);verify(s.count('Nyxgram::ConfirmMedia(')>=2,file+' needs document and inline preflight')
 for file,key in [('data/data_histories.cpp','hideRead'),('api/api_updates.cpp','hideOnline'),('api/api_send_progress.cpp','hideTyping'),('data/data_stories.cpp','storyGhost')]:
  verify(key in read(file),file+' policy hook')
+for file,key in [('data/data_replies_list.cpp','hideRead'),('data/data_saved_sublist.cpp','hideRead'),('chat_helpers/emoji_interactions.cpp','hideTyping')]:
+ verify(key in read(file),file+' extra privacy path')
 s=read('nyx/nyx_history.cpp')
 for key in ['CryptProtectData','CryptUnprotectData','ttlDestroyAt','ventities','keepEdits','Prune','RememberLocalEmoji','RestoreLocalEmoji','Sha256']:
  verify(key in s,key)

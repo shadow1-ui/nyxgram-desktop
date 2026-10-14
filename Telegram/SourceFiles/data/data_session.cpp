@@ -2664,6 +2664,7 @@ void Session::processMessages(
 	for (int i = 0, l = data.size(); i != l; ++i) {
 		const auto &message = data[i];
 		if (message.type() == mtpc_message) {
+			Nyxgram::CaptureMessage(session().uniqueId(), PeerFromMessage(message).value, message);
 			const auto &data = message.c_message();
 			// new message, index my forwarded messages to links overview
 			if ((type == NewMessageType::Unread)

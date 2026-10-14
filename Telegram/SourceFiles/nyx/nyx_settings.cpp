@@ -128,7 +128,7 @@ private:
  QElapsedTimer elapsed;
 };
 }
-bool LocalPremium(quint64 owner){if(!owner){const auto s=ActiveSession();owner=s?s->uniqueId():0;}return owner&&Policy(owner,"localPremium",Prefs().value("localPremium",false).toBool());}
+bool LocalPremium(quint64 owner){if(!owner){const auto s=ActiveFeatureSession();owner=s?s->uniqueId():0;}return owner&&Policy(owner,"localPremium",Prefs().value("localPremium",false).toBool());}
 bool KeepDeletedMessages(quint64 owner){if(!owner)if(auto s=ActiveFeatureSession())owner=s->uniqueId();return Policy(owner,"keepDeleted",Prefs().value("keepDeleted",false).toBool());}
 QColor DeletedColor(){return QColor(Prefs().value("deletedColor","#d976a6").toString());}
 QString DeletedSymbol(){const QStringList symbols={QString::fromUtf8("✕"),QString::fromUtf8("⌫"),QString::fromUtf8("●"),QString::fromUtf8("▱")};return symbols[qBound(0,Prefs().value("deletedIcon",0).toInt(),3)];}
