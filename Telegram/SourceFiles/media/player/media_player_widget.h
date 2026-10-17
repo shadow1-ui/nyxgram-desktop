@@ -60,6 +60,8 @@ public:
 	void updateDropdownsGeometry();
 	void raiseDropdowns();
 
+	[[nodiscard]] AudioMsgId::Type playlistType() const { return _type; }
+
 	[[nodiscard]] rpl::producer<bool> togglePlaylistRequests() const {
 		return _togglePlaylistRequests.events();
 	}
@@ -73,6 +75,7 @@ private:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	[[nodiscard]] not_null<Ui::RpWidget*> rightControls();
 	void setupRightControls();

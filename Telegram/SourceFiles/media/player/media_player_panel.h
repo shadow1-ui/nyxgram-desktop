@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_audio_msg_id.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "info/info_controller.h"
@@ -36,6 +37,7 @@ public:
 
 	void hideIgnoringEnterEvents();
 
+	void setType(AudioMsgId::Type type);
 	void showFromOther();
 	void hideFromOther();
 
@@ -87,6 +89,7 @@ private:
 		return static_cast<Info::AbstractController*>(this);
 	}
 
+	AudioMsgId::Type _type = AudioMsgId::Type::Song;
 	bool _hiding = false;
 
 	QPixmap _cache;

@@ -90,6 +90,6 @@
     <file alias="icons/paper.png">../../nyx/icons/paper.png</file>
     <file alias="icons/paper.ico">../../nyx/icons/paper.ico</file>
     <file alias="startup.jpg">../../nyx/startup.jpg</file>
-    <file alias="night.tdesktop-theme">../../nyx/night.tdesktop-theme</file>
+    <file alias="night.tdesktop-theme">../../nyx/night-refined.tdesktop-palette</file>
   </qresource>
 </RCC>

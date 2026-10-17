@@ -1,0 +1,14 @@
+name: Nyxgram interface checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/check_nyx_port.py
+      - run: python3 -m pip install tree-sitter==0.26.0 tree-sitter-cpp==0.23.4
+      - run: python3 tools/test_nyx_interface.py
