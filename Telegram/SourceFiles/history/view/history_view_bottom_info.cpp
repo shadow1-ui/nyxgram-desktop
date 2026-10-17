@@ -43,7 +43,7 @@ int DeletedMarkerWidth() {
 
 void PaintDeletedMarker(Painter &p, QPoint position, int outerWidth) {
     const auto side = st::msgDateFont->height;
-    const auto rect = myrtlrect(position.x(), position.y(), side, side, outerWidth);
+    const auto rect = style::rtlrect(position.x(), position.y(), side, side, outerWidth);
     p.save();
     p.setRenderHint(QPainter::Antialiasing);
     p.translate(rect.topLeft());

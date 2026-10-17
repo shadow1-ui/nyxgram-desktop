@@ -15,7 +15,7 @@ check('p.drawText(QRect(right,position.y()' not in s,'no overpainted timestamp g
 check('right -= DeletedMarkerWidth();' in s,'draw reserves marker space')
 check('width += DeletedMarkerWidth();' in s,'layout reserves marker space')
 check('PaintDeletedMarker(p, QPoint(right, position.y()), outerWidth)' in s,'single marker draw')
-check('myrtlrect(position.x()' in s,'RTL marker geometry')
+check('style::rtlrect(position.x()' in s,'RTL marker geometry uses the free style helper, not the RpWidget member')
 check('p.save();' in s and 'p.restore();' in s,'restore icon painter state')
 check('p.opacity() * .78' in read('history/view/history_view_message.cpp'),'faded local copy')
 s=read('media/player/media_player_widget.cpp')
@@ -84,3 +84,18 @@ profile=read('info/profile/info_profile_actions.cpp')
 check('overrideLinkClickHandler([peer=_peer](const ClickHandlerPtr' not in profile,'link override is not a click-filter callback')
 check(profile.count('overrideLinkClickHandler([peer=_peer]{')==3,'three native no-argument link overrides')
 print('PASS: five Qt 5/lib_ui Windows compiler regression guards')
+
+# Ensure every newly changed rendering/player integration unit gets a native preflight.
+cmake=(r.parent/'CMakeLists.txt').read_text()
+preflight=cmake[cmake.index('add_library(nyx_compile_check OBJECT'):cmake.index('target_link_libraries(nyx_compile_check')]
+for unit in ['history/view/history_view_bottom_info.cpp','media/player/media_player_widget.cpp','media/player/media_player_panel.cpp','info/media/info_media_list_widget.cpp','mainwidget.cpp']:
+ check('${src_loc}/'+unit in preflight,'native compile preflight: '+unit)
+print('PASS: all five extra rendering/player units included in native C++ preflight')
+
+# Manual stable publication is explicit and remains downstream of successful compilation.
+workflow=(r.parents[1]/'.github/workflows/win.yml').read_text()
+check('publish_release:' in workflow and 'PUBLISH_RELEASE: ${{ inputs.publish_release }}' in workflow,'explicit release input')
+check("$extra = @('--draft')" in workflow,'draft remains default')
+check(workflow.index('Compile Nyxgram Desktop Release') < workflow.index('Verify Windows update package before release') < workflow.index('Publish requested release or prepare draft'),'verify package after native build and before publication')
+check("$env:PUBLISH_RELEASE -eq 'true'" in workflow and "@('--latest')" in workflow,'stable publication requires explicit opt-in')
+print('PASS: four release publication guards (native build, manifest and explicit opt-in)')

@@ -9,6 +9,10 @@ on:
         description: 'Только подготовить зависимости, без EXE'
         type: boolean
         default: false
+      publish_release:
+        description: 'Опубликовать успешно собранный Windows-релиз'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -164,15 +168,36 @@ jobs:
           path: |
             Nyxgram-Desktop-*-Windows-x64.zip
             nyx-desktop-update.json
-      - name: Prepare draft Nyxgram release
+      - name: Verify Windows update package before release
+        if: env.BUILD_APP == 'true'
+        shell: pwsh
+        run: |
+          $manifest = Get-Content nyx-desktop-update.json -Raw | ConvertFrom-Json
+          $expected = "Nyxgram-Desktop-$env:GITHUB_RUN_NUMBER-Windows-x64.zip"
+          if ($manifest.package -ne 'com.nyxgram.desktop' -or [int]$manifest.versionCode -ne [int]$env:GITHUB_RUN_NUMBER -or $manifest.archive -ne $expected) { throw 'Unexpected Windows update manifest identity' }
+          $file = Get-Item $expected
+          $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+          if ($file.Length -ne [long]$manifest.size -or $hash -ne $manifest.sha256) { throw 'Windows package checksum/size mismatch' }
+          $zip = [IO.Compression.ZipFile]::OpenRead($file.FullName)
+          try {
+            if (!$zip.GetEntry('Nyxgram.exe')) { throw 'Portable package has no Nyxgram.exe' }
+            foreach ($entry in $zip.Entries) {
+              if ($entry.FullName -match '(^|[/\\])tdata([/\\]|$)') { throw 'Unexpected user data in portable package' }
+            }
+          } finally { $zip.Dispose() }
+      - name: Publish requested release or prepare draft
         if: env.BUILD_APP == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLISH_RELEASE: ${{ inputs.publish_release }}
         run: |
           $tag = "nyx-desktop-0.3.0-build-$env:GITHUB_RUN_NUMBER"
           $archive = "Nyxgram-Desktop-$env:GITHUB_RUN_NUMBER-Windows-x64.zip"
-          gh release create $tag $archive nyx-desktop-update.json --draft --title "Nyxgram Desktop 0.3.0" --notes-file "$env:TBUILD\nyxgram-desktop\NYXGRAM_PORTABLE_README.txt" --target $env:GITHUB_SHA --repo $env:GITHUB_REPOSITORY
+          $extra = @('--draft')
+          if ($env:PUBLISH_RELEASE -eq 'true') { $extra = @('--latest') }
+          gh release create $tag $archive nyx-desktop-update.json @extra --title "Nyxgram Desktop 0.3.0 · сборка $env:GITHUB_RUN_NUMBER" --notes-file "$env:TBUILD\nyxgram-desktop\NYXGRAM_DESKTOP_RELEASE_NOTES.md" --target $env:GITHUB_SHA --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed' }
       - name: Summarize actual result
         shell: pwsh
         run: |
