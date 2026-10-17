@@ -36,3 +36,7 @@ The editor environment is Linux without the project's Windows/MSVC/Qt dependency
 - [ ] Archive PIN relock, preservation toggle, retention/clear, restored local copies, secret/TTL/view-once exclusions remain intact.
 - [ ] Settings tabs scroll at minimum window size and high DPI; keyboard focus and dropdown text remain legible; profile copy/bookmarks still work.
 - [ ] Explicit Nyx theme Apply/Restore loads the packaged plain palette and preserves wallpaper; selected text/bubbles, links, timestamps, buttons and service text are readable. Verify on the rendered UI, not just contrast calculations.
+
+## Native Windows build follow-up
+
+The first full Windows CI run found three inherited compilation defects: Qt 6-only QList::removeIf on the project's Qt 5.15.17, an incomplete DocumentData type in the message renderer, and three click-filter-signature lambdas passed to FlatLabel::overrideLinkClickHandler. The follow-up uses standard erase/remove_if, includes data_document.h explicitly, and uses the pinned lib_ui no-argument callback overload. The integration checks cover these regressions. A successful full native rebuild is still required before publishing the Windows package.

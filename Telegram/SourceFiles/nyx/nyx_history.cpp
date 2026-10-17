@@ -115,7 +115,7 @@ QByteArray Semantic(const MTPMessage &message){mtpBuffer b;const auto &m=message
 void CaptureMessage(quint64 owner,quint64 peer,const MTPMessage &message){
  if(!owner)return;
  if(!Eligible(message)){
-  if(message.type()==mtpc_message&&IdFromMessage(message).bare>0){auto &state=Read(owner);const auto key=Key(peer,IdFromMessage(message).bare);state.snapshots.remove(key);const auto removed=state.deleted.remove(key);state.deletedAt.remove(key);state.order.removeAll(key);const auto before=state.edits.size();state.edits.removeIf([&](const Version &v){return v.key==key;});if(removed||before!=state.edits.size()){state.dirty=true;ScheduleFlush();}}return;
+  if(message.type()==mtpc_message&&IdFromMessage(message).bare>0){auto &state=Read(owner);const auto key=Key(peer,IdFromMessage(message).bare);state.snapshots.remove(key);const auto removed=state.deleted.remove(key);state.deletedAt.remove(key);state.order.removeAll(key);const auto before=state.edits.size();state.edits.erase(std::remove_if(state.edits.begin(),state.edits.end(),[&](const Version &v){return v.key==key;}),state.edits.end());if(removed||before!=state.edits.size()){state.dirty=true;ScheduleFlush();}}return;
  }
  auto &state=Read(owner);const auto body=Encode(message);if(body.size()>512*1024)return;
  const auto key=Key(peer,IdFromMessage(message).bare);

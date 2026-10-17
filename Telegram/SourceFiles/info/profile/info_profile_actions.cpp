@@ -1427,7 +1427,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	};
 	if (Nyxgram::Policy(_peer->session().uniqueId(), "showId", true) || Nyxgram::Policy(_peer->session().uniqueId(), "showDc", true)) {
 		auto nyxLine = addInfoOneLine(rpl::single(QString::fromUtf8("Информация")), rpl::single(Ui::Text::Link(Nyxgram::ProfileRow(_peer), QString("nyx:id"))), QString());
-		nyxLine.text->overrideLinkClickHandler([peer=_peer](const ClickHandlerPtr &, Qt::MouseButton){ TextUtilities::SetClipboardText({Nyxgram::ProfileId(peer)}); return false; });
+		nyxLine.text->overrideLinkClickHandler([peer=_peer]{ TextUtilities::SetClipboardText({Nyxgram::ProfileId(peer)}); });
 		nyxLine.text->setContextMenuHook([peer=_peer](Ui::FlatLabel::ContextMenuRequest request){request.menu->addAction(QString::fromUtf8("ID, ссылки и закладка · Nyxgram"), [peer]{Nyxgram::ShowProfileMenu(peer);});});
 	}
 	if (const auto user = _peer->asUser()) {
@@ -1480,7 +1480,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			_peer,
 			controller,
 			QString());
-		usernameLine.text->overrideLinkClickHandler([peer=_peer](const ClickHandlerPtr &, Qt::MouseButton){Nyxgram::ShowProfileMenu(peer);return false;});
+		usernameLine.text->overrideLinkClickHandler([peer=_peer]{Nyxgram::ShowProfileMenu(peer);});
 		usernameLine.subtext->overrideLinkClickHandler(callback);
 		usernameLine.text->setContextMenuHook(lnkHook);
 		usernameLine.subtext->setContextMenuHook(lnkHook);
@@ -1561,7 +1561,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			_peer,
 			controller,
 			addToLink);
-		linkLine.text->overrideLinkClickHandler([peer=_peer](const ClickHandlerPtr &, Qt::MouseButton){Nyxgram::ShowProfileMenu(peer);return false;});
+		linkLine.text->overrideLinkClickHandler([peer=_peer]{Nyxgram::ShowProfileMenu(peer);});
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
 		linkLine.text->setContextMenuHook(lnkHook);
 		linkLine.subtext->setContextMenuHook(lnkHook);

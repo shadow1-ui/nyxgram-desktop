@@ -74,3 +74,13 @@ for foreground,background in [('activeButtonFg','activeButtonBg'),('activeButton
 qrc=ET.parse(resources/'qrc/telegram/telegram.qrc')
 check(any(el.text=='../../nyx/night-refined.tdesktop-palette' and el.get('alias')=='night.tdesktop-theme' for el in qrc.iter('file')),'refined theme packaged')
 print('PASS: palette references, Qt alias and six 4.5:1 text-contrast pairs (no rendered UI QA)')
+
+# Native Windows build regressions: Qt 5.15 and the pinned lib_ui callback API.
+history=read('nyx/nyx_history.cpp')
+check('state.edits.removeIf' not in history,'QList::removeIf requires Qt 6')
+check('state.edits.erase(std::remove_if(' in history,'Qt 5 compatible TTL purge')
+check('#include "data/data_document.h"' in read('history/view/history_view_message.cpp'),'complete DocumentData for media member calls')
+profile=read('info/profile/info_profile_actions.cpp')
+check('overrideLinkClickHandler([peer=_peer](const ClickHandlerPtr' not in profile,'link override is not a click-filter callback')
+check(profile.count('overrideLinkClickHandler([peer=_peer]{')==3,'three native no-argument link overrides')
+print('PASS: five Qt 5/lib_ui Windows compiler regression guards')
