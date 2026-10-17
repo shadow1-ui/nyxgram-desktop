@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_widget.h"
+#include <QtGui/QKeyEvent>
 
 #include "platform/platform_specific.h"
 #include "data/data_document.h"
@@ -78,6 +79,9 @@ Widget::Widget(
 		[=](bool over) { markOver(over); },
 		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
 		[=](float64 speed) { saveSpeed(speed); })) {
+    setFocusPolicy(Qt::StrongFocus);
+    setAccessibleName(QString::fromUtf8("Плеер и очередь воспроизведения"));
+    setToolTip(QString::fromUtf8("Нажмите, чтобы открыть очередь · Ctrl+клик — к сообщению"));
 	_speedController->realtimeValue(
 	) | rpl::start_with_next([=](float64 speed) {
 		_speedToggle->setSpeed(speed);
@@ -443,26 +447,30 @@ void Widget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void Widget::mousePressEvent(QMouseEvent *e) {
-	_labelsDown = _labelsOver;
+    _labelsDown = (e->button() == Qt::LeftButton) && _labelsOver;
+    if (_labelsDown) setFocus(Qt::MouseFocusReason);
 }
 
 void Widget::mouseReleaseEvent(QMouseEvent *e) {
-	if (auto downLabels = base::take(_labelsDown)) {
-		if (_labelsOver != downLabels) {
-			return;
-		}
-		if ((_type == AudioMsgId::Type::Voice)
-				|| _lastSongFromAnotherSession) {
-			const auto current = instance()->current(_type);
-			const auto document = current.audio();
-			const auto context = current.contextId();
-			if (document && context && _showItemCallback) {
-				if (const auto item = document->owner().message(context)) {
-					_showItemCallback(item);
-				}
-			}
-		}
-	}
+    if (e->button() != Qt::LeftButton || !base::take(_labelsDown) || !_labelsOver) return;
+    if (!_lastSongFromAnotherSession && !(e->modifiers() & Qt::ControlModifier)) {
+        _togglePlaylistRequests.fire(true);
+        return;
+    }
+    const auto current = instance()->current(_type);
+    if (const auto document = current.audio(); document && current.contextId() && _showItemCallback) {
+        if (const auto item = document->owner().message(current.contextId())) _showItemCallback(item);
+    }
+}
+
+void Widget::keyPressEvent(QKeyEvent *e) {
+    if (!_lastSongFromAnotherSession
+            && (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter || e->key() == Qt::Key_Space)) {
+        _togglePlaylistRequests.fire(true);
+        e->accept();
+        return;
+    }
+    Ui::RpWidget::keyPressEvent(e);
 }
 
 void Widget::updateOverLabelsState(QPoint pos) {
@@ -478,11 +486,10 @@ void Widget::updateOverLabelsState(QPoint pos) {
 
 void Widget::updateOverLabelsState(bool over) {
 	_labelsOver = over;
-	const auto pressShowsItem = _labelsOver
-		&& ((_type == AudioMsgId::Type::Voice)
-			|| _lastSongFromAnotherSession);
-	setCursor(pressShowsItem ? style::cur_pointer : style::cur_default);
-	_togglePlaylistRequests.fire(over && (_type == AudioMsgId::Type::Song));
+    setCursor(_labelsOver ? style::cur_pointer : style::cur_default);
+    // Keep the native music hover shortcut; voice queues are deliberately click-to-open.
+    _togglePlaylistRequests.fire(over && (_type == AudioMsgId::Type::Song)
+        && !_lastSongFromAnotherSession);
 }
 
 void Widget::updatePlayPrevNextPositions() {

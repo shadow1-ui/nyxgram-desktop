@@ -36,6 +36,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
+namespace {
+int DeletedMarkerWidth() {
+    return st::msgDateFont->height + st::msgDateFont->spacew;
+}
+
+void PaintDeletedMarker(Painter &p, QPoint position, int outerWidth) {
+    const auto side = st::msgDateFont->height;
+    const auto rect = myrtlrect(position.x(), position.y(), side, side, outerWidth);
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing);
+    p.translate(rect.topLeft());
+    p.scale(side / 16., side / 16.);
+    auto pen = QPen(Nyxgram::DeletedColor(), 1.4);
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setJoinStyle(Qt::RoundJoin);
+    p.setPen(pen);
+    p.setBrush(Qt::NoBrush);
+    const auto symbol = Nyxgram::DeletedSymbol();
+    if (symbol == QString::fromUtf8("●")) {
+        p.setBrush(Nyxgram::DeletedColor());
+        p.drawEllipse(QRectF(5., 5., 6., 6.));
+    } else if (symbol == QString::fromUtf8("▱")) {
+        p.drawRoundedRect(QRectF(3., 3., 10., 10.), 2., 2.);
+    } else if (symbol == QString::fromUtf8("⌫")) {
+        p.drawLine(QPointF(6., 3.), QPointF(14., 3.));
+        p.drawLine(QPointF(14., 3.), QPointF(14., 13.));
+        p.drawLine(QPointF(14., 13.), QPointF(6., 13.));
+        p.drawLine(QPointF(6., 13.), QPointF(2., 8.));
+        p.drawLine(QPointF(2., 8.), QPointF(6., 3.));
+        p.drawLine(QPointF(8., 6.), QPointF(12., 10.));
+        p.drawLine(QPointF(12., 6.), QPointF(8., 10.));
+    } else {
+        // Font-independent trash icon: readable even when no emoji font is installed.
+        p.drawLine(QPointF(3., 4.), QPointF(13., 4.));
+        p.drawLine(QPointF(6., 2.), QPointF(10., 2.));
+        p.drawRoundedRect(QRectF(4., 5., 8., 9.), 1.5, 1.5);
+        p.drawLine(QPointF(7., 7.), QPointF(7., 11.));
+        p.drawLine(QPointF(9., 7.), QPointF(9., 11.));
+    }
+    p.restore();
+}
+} // namespace
+
 struct BottomInfo::Effect {
 	mutable std::unique_ptr<Ui::ReactionFlyAnimation> animation;
 	mutable QImage image;
@@ -118,7 +161,8 @@ TextState BottomInfo::textState(
 		result.link = link;
 		return result;
 	}
-	const auto textWidth = _authorEditedDate.maxWidth();
+	const auto textWidth = _authorEditedDate.maxWidth()
+        + ((_data.flags & Data::Flag::NyxDeleted) ? DeletedMarkerWidth() : 0);
 	auto withTicksWidth = textWidth;
 	if (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending)) {
 		withTicksWidth += st::historySendStateSpace;
@@ -251,7 +295,10 @@ void BottomInfo::paint(
 		authorEditedWidth,
 		outerWidth);
 
-	if(_data.flags & Data::Flag::NyxDeleted){const auto old=p.pen();p.setPen(Nyxgram::DeletedColor());p.drawText(QRect(right,position.y(),st::msgDateFont->width(Nyxgram::DeletedSymbol()),st::msgDateFont->height),Qt::AlignCenter,Nyxgram::DeletedSymbol());p.setPen(old);}
+	if (_data.flags & Data::Flag::NyxDeleted) {
+        right -= DeletedMarkerWidth();
+        PaintDeletedMarker(p, QPoint(right, position.y()), outerWidth);
+    }
 
 	if (_data.flags & Data::Flag::Pinned) {
 		const auto &icon = inverted
@@ -443,7 +490,7 @@ void BottomInfo::layoutDateText() {
 			Ui::Text::IconEmoji(&st::starIconEmojiSmall)
 		).append(Lang::FormatCountToShort(count).string).append(u", "_q);
 	}
-	if(_data.flags & Data::Flag::NyxDeleted) marked.append(Nyxgram::DeletedSymbol()+QString(" "));
+
 	marked.append(full);
 	_authorEditedDate.setMarkedText(
 		st::msgDateTextStyle,
@@ -495,6 +542,7 @@ QSize BottomInfo::countOptimalSize() {
 		width += st::historySendStateSpace;
 	}
 	width += _authorEditedDate.maxWidth();
+    if (_data.flags & Data::Flag::NyxDeleted) width += DeletedMarkerWidth();
 	if (!_views.isEmpty()) {
 		width += st::historyViewsSpace
 			+ _views.maxWidth()

@@ -16,6 +16,7 @@ QString ShortcutIconPath();
 QStringList LocalPins(quint64 owner);
 int LocalPinRank(quint64 owner, quint64 peer);
 bool ToggleLocalPin(quint64 owner, quint64 peer);
+QString SettingsStyleSheet();
 void ShowSettings();
 void ShowStartup();
 }

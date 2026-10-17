@@ -158,12 +158,36 @@ bool ToggleLocalPin(quint64 owner, quint64 peer) {
  Prefs().setValue(QString("pins/%1").arg(owner), state.ids);Prefs().sync();
  return true;
 }
+QString SettingsStyleSheet() {
+ return QString::fromUtf8(R"(
+ QDialog, QWidget#nyxBody, QTabWidget::pane { background:#10121c; color:#edf0f7; }
+ QLabel, QCheckBox { color:#edf0f7; }
+ QLabel { padding:2px 0; }
+ QToolButton, QPushButton, QComboBox { background:#1d2030; color:#edf0f7; border:1px solid #383d55; border-radius:10px; padding:10px 12px; min-height:20px; }
+ QPushButton:hover, QToolButton:hover, QComboBox:hover { background:#292d43; border-color:#8e80c9; }
+ QPushButton:focus, QToolButton:focus, QComboBox:focus { border:2px solid #b6a2ef; }
+ QToolButton:checked { border:2px solid #b6a2ef; background:#302a49; }
+ QCheckBox { spacing:10px; padding:9px 0; }
+ QCheckBox::indicator { width:20px; height:20px; }
+ QTabWidget::pane { border:0; padding:8px; }
+ QTabBar::tab { background:#1d2030; color:#bac0d4; padding:10px 12px; margin:2px; border-radius:8px; }
+ QTabBar::tab:selected { background:#302a49; color:#e0d4ff; }
+ QScrollArea { border:0; background:#10121c; }
+ QScrollArea > QWidget > QWidget { background:#10121c; }
+ QTextEdit, QLineEdit { background:#1d2030; color:#edf0f7; border:1px solid #383d55; border-radius:10px; padding:12px; selection-background-color:#605078; }
+ QComboBox QAbstractItemView { background:#1d2030; color:#edf0f7; selection-background-color:#403655; }
+ QScrollBar:vertical { background:transparent; width:8px; }
+ QScrollBar::handle:vertical { background:#51566f; border-radius:4px; min-height:28px; }
+ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
+ )");
+}
+
 void ShowSettings() {
  static QPointer<QDialog> open;
  if (open) { open->raise();open->activateWindow();return; }
  auto dialog = new QDialog(QApplication::activeWindow());open=dialog;
  dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowTitle("Nyxgram · 0.3.0");dialog->setWindowIcon(QIcon(IconPath()));dialog->resize(600,690);
- dialog->setStyleSheet("QDialog, QWidget#nyxBody {background:#0b1020;color:#f1f3fa;} QLabel,QCheckBox {color:#f1f3fa;} QToolButton,QPushButton {background:#141b2d;color:#f1f3fa;border:1px solid #36445e;border-radius:8px;padding:8px;} QToolButton:checked {border:2px solid #a98bfa;background:#26324a;} QToolButton:hover,QPushButton:hover {background:#26324a;} QCheckBox {spacing:10px;padding:10px 0;} QCheckBox::indicator {width:22px;height:22px;} QScrollArea {border:0;}");
+ dialog->setStyleSheet(SettingsStyleSheet());
  auto root = new QVBoxLayout(dialog); root->setContentsMargins(24,24,24,24);root->setSpacing(16);
  auto area = new QScrollArea(dialog);area->setWidgetResizable(true);root->addWidget(area);
  auto body = new QWidget;body->setObjectName("nyxBody");area->setWidget(body);
@@ -195,7 +219,7 @@ void ShowSettings() {
  label("После удаления сообщение остаётся на месте: немного приглушённое, со значком рядом со временем. Копии шифруются для текущего пользователя Windows. Секретные, одноразовые сообщения и сообщения с таймером не сохраняются. Только полученные на этом устройстве сообщения; до 5000 копий / 8 МБ метаданных на аккаунт.");
  auto clearCopies=new QPushButton(QString::fromUtf8("Очистить локальные копии удалённых сообщений"));layout->addWidget(clearCopies);
  QObject::connect(clearCopies,&QPushButton::clicked,dialog,[dialog]{if(auto s=ActiveSession();s&&UnlockArchive(s)&&QMessageBox::question(dialog,"Nyxgram",QString::fromUtf8("Удалить все сохранённые копии текущего аккаунта на этом компьютере? Сообщения на сервере не изменятся."))==QMessageBox::Yes)ClearDeletedCopies(s);});
- auto marks=new QComboBox(body);marks->addItems({QString::fromUtf8("✕ Крестик"),QString::fromUtf8("⌫ Удаление"),QString::fromUtf8("● Точка"),QString::fromUtf8("▱ Контур")});marks->setCurrentIndex(Prefs().value("deletedIcon",0).toInt());layout->addWidget(marks);
+ auto marks=new QComboBox(body);marks->addItems({QString::fromUtf8("Корзина"),QString::fromUtf8("⌫ Удаление"),QString::fromUtf8("● Точка"),QString::fromUtf8("▱ Контур")});marks->setCurrentIndex(Prefs().value("deletedIcon",0).toInt());layout->addWidget(marks);
  QObject::connect(marks,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[](int index){Prefs().setValue("deletedIcon",index);RefreshDeletedCopies(ActiveSession());});
  auto colors=new QComboBox(body);colors->addItems({QString::fromUtf8("Розовый"),QString::fromUtf8("Лавандовый"),QString::fromUtf8("Голубой"),QString::fromUtf8("Серый")});const QStringList colorValues={"#d976a6","#a98bfa","#70d9e8","#b7bed2"};colors->setCurrentIndex(qMax(0,colorValues.indexOf(Prefs().value("deletedColor","#d976a6").toString())));layout->addWidget(colors);
  QObject::connect(colors,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[colorValues](int index){Prefs().setValue("deletedColor",colorValues[index]);RefreshDeletedCopies(ActiveSession());});

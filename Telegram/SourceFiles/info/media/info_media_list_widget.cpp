@@ -366,8 +366,12 @@ void ListWidget::selectionAction(SelectionAction action) {
 }
 
 QRect ListWidget::getCurrentSongGeometry() {
-	const auto type = AudioMsgId::Type::Song;
-	const auto current = ::Media::Player::instance()->current(type);
+    const auto section = _controller->section();
+    const auto isMedia = section.type() == Info::Section::Type::Media
+        || section.type() == Info::Section::Type::GlobalMedia;
+    const auto type = (isMedia && section.mediaType() == Storage::SharedMediaType::RoundVoiceFile)
+        ? AudioMsgId::Type::Voice : AudioMsgId::Type::Song;
+    const auto current = ::Media::Player::instance()->current(type);
 	if (const auto document = current.audio()) {
 		const auto contextId = current.contextId();
 		if (const auto item = document->owner().message(contextId)) {

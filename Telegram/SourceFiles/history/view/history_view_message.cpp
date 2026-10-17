@@ -1159,7 +1159,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 	const auto item = data();
 	struct OpacityRestore { Painter &p; qreal value; ~OpacityRestore(){ p.setOpacity(value); } } opacity{p,p.opacity()};
-	if (item->nyxDeleted) p.setOpacity(p.opacity()*.88);
+	if (item->nyxDeleted) p.setOpacity(p.opacity() * .78);
 	const auto media = this->media();
 
 	const auto hasGesture = context.gestureHorizontal.translation

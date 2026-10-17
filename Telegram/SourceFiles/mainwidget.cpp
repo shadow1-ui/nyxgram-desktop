@@ -897,13 +897,15 @@ void MainWidget::createPlayer() {
 			if (!shown) {
 				_playerPlaylist->hideFromOther();
 				return;
-			} else if (_playerPlaylist->isHidden()) {
+            }
+            _playerPlaylist->setType(_player->entity()->playlistType());
+            if (_playerPlaylist->isHidden()) {
 				auto position = mapFromGlobal(QCursor::pos()).x();
 				auto bestPosition = _playerPlaylist->bestPositionFor(position);
 				if (rtl()) bestPosition = position + 2 * (position - bestPosition) - _playerPlaylist->width();
 				updateMediaPlaylistPosition(bestPosition);
 			}
-			_playerPlaylist->showFromOther();
+            _playerPlaylist->showFromOther();
 		}, _player->lifetime());
 
 		orderWidgets();

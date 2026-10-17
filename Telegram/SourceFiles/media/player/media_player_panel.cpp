@@ -77,11 +77,8 @@ bool Panel::contentTooSmall() const {
 }
 
 int Panel::emptyInnerHeight() const {
-	return st::infoMediaMargin.top()
-		+ st::overviewFileLayout.songPadding.top()
-		+ st::overviewFileLayout.songThumbSize
-		+ st::overviewFileLayout.songPadding.bottom()
-		+ st::infoMediaMargin.bottom();
+	// A queue containing just the current track must still open.
+    return st::infoMediaMargin.top() + st::infoMediaMargin.bottom();
 }
 
 bool Panel::preventAutoHide() const {
@@ -187,6 +184,17 @@ void Panel::leaveEventHook(QEvent *e) {
 	return RpWidget::leaveEventHook(e);
 }
 
+void Panel::setType(AudioMsgId::Type type) {
+    if (_type == type) return;
+    _showTimer.cancel();
+    _hideTimer.cancel();
+    _a_appearance.stop();
+    _hiding = false;
+    hideFinished();
+    _type = type;
+    updateSize();
+}
+
 void Panel::showFromOther() {
 	_hideTimer.cancel();
 	if (_a_appearance.animating()) {
@@ -209,7 +217,7 @@ void Panel::ensureCreated() {
 	if (_scroll->widget()) return;
 
 	_refreshListLifetime = instance()->playlistChanges(
-		AudioMsgId::Type::Song
+        _type
 	) | rpl::start_with_next([=] {
 		refreshList();
 	});
@@ -226,7 +234,7 @@ void Panel::ensureCreated() {
 }
 
 void Panel::refreshList() {
-	const auto current = instance()->current(AudioMsgId::Type::Song);
+	const auto current = instance()->current(_type);
 	const auto contextId = current.contextId();
 	auto savedMusicItem = false;
 	const auto peer = [&]() -> PeerData* {
@@ -242,13 +250,15 @@ void Panel::refreshList() {
 		const auto media = item ? item->media() : nullptr;
 		const auto document = media ? media->document() : nullptr;
 		if (!document
-			|| !document->isSharedMediaMusic()
+			|| !((_type == AudioMsgId::Type::Song && document->isSharedMediaMusic())
+                || (_type == AudioMsgId::Type::Voice
+                    && (document->isVoiceMessage() || document->isVideoMessage())))
 			|| (!item->isRegular()
 				&& !item->isScheduled()
 				&& !item->isSavedMusicItem())) {
 			return nullptr;
 		}
-		savedMusicItem = item->isSavedMusicItem();
+		savedMusicItem = (_type == AudioMsgId::Type::Song) && item->isSavedMusicItem();
 		const auto result = item->history()->peer;
 		if (const auto migrated = result->migrateTo()) {
 			return migrated;
@@ -320,11 +330,9 @@ void Panel::refreshList() {
 }
 
 void Panel::performDestroy() {
-	if (!_scroll->widget()) return;
-
-	_scroll->takeWidget<QWidget>().destroy();
-	_listPeer = _listMusicPeer = _listMigratedPeer = nullptr;
-	_refreshListLifetime.destroy();
+    _refreshListLifetime.destroy();
+    if (_scroll->widget()) _scroll->takeWidget<QWidget>().destroy();
+    _listPeer = _listMusicPeer = _listMigratedPeer = nullptr;
 }
 
 Info::Key Panel::key() const {
@@ -340,7 +348,9 @@ PeerData *Panel::migrated() const {
 Info::Section Panel::section() const {
 	return _listMusicPeer
 		? Info::Section(Info::Section::Type::SavedMusic)
-		: Info::Section(Info::Section::MediaType::MusicFile);
+		: Info::Section(_type == AudioMsgId::Type::Voice
+            ? Info::Section::MediaType::RoundVoiceFile
+            : Info::Section::MediaType::MusicFile);
 }
 
 void Panel::startShow() {

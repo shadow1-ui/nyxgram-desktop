@@ -1426,7 +1426,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			});
 	};
 	if (Nyxgram::Policy(_peer->session().uniqueId(), "showId", true) || Nyxgram::Policy(_peer->session().uniqueId(), "showDc", true)) {
-		auto nyxLine = addInfoOneLine(rpl::single(QString("Nyxgram")), rpl::single(Ui::Text::Link(Nyxgram::ProfileRow(_peer), QString("nyx:id"))), QString());
+		auto nyxLine = addInfoOneLine(rpl::single(QString::fromUtf8("Информация")), rpl::single(Ui::Text::Link(Nyxgram::ProfileRow(_peer), QString("nyx:id"))), QString());
 		nyxLine.text->overrideLinkClickHandler([peer=_peer](const ClickHandlerPtr &, Qt::MouseButton){ TextUtilities::SetClipboardText({Nyxgram::ProfileId(peer)}); return false; });
 		nyxLine.text->setContextMenuHook([peer=_peer](Ui::FlatLabel::ContextMenuRequest request){request.menu->addAction(QString::fromUtf8("ID, ссылки и закладка · Nyxgram"), [peer]{Nyxgram::ShowProfileMenu(peer);});});
 	}
