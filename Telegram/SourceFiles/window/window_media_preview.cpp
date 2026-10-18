@@ -55,6 +55,7 @@ MediaPreviewWidget::MediaPreviewWidget(
 		if (_document && _document->emojiUsesTextColor()) {
 			_cache = QPixmap();
 		}
+		update();
 	}, lifetime());
 }
 
@@ -303,7 +304,9 @@ QSize MediaPreviewWidget::currentDimensions() const {
 	if (_embedded) {
 		const auto padding = style::ConvertScale(24);
 		const auto available = QSize(qMax(1, width() - 2 * padding), qMax(1, height() - 2 * padding));
-		box = box.boundedTo(available);
+		const auto effectSpace = _document && _document->isPremiumSticker()
+			? (available / kPremiumMultiplier) : available;
+		box = box.boundedTo(effectSpace);
 	}
 	result = QSize(qMax(style::ConvertScale(result.width()), 1), qMax(style::ConvertScale(result.height()), 1));
 	if (result.width() > box.width()) {

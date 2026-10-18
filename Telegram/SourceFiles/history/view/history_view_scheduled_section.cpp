@@ -877,9 +877,9 @@ void ScheduledWidget::edit(
 bool ScheduledWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend) {
-	const auto nyxTarget = _history->peer ? _history->peer->id.value : 0;
+	const auto nyxTarget = _history->peer->id.value;
 	if (!Nyxgram::ConfirmMedia(document, nyxTarget, messageToSend.action.options.nyxMediaApproved, crl::guard(this, [=] {
-		if (!_history->peer || _history->peer->id.value != nyxTarget) return;
+		if (_history->peer->id.value != nyxTarget) return;
 		auto copy = messageToSend; copy.action.options.nyxMediaApproved = true;
 		sendExistingDocument(document, std::move(copy));
 	}))) return false;
@@ -948,9 +948,9 @@ void ScheduledWidget::sendInlineResult(
 		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options) {
-	const auto nyxTarget = _history->peer ? _history->peer->id.value : 0;
+	const auto nyxTarget = _history->peer->id.value;
 	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), nyxTarget, options.nyxMediaApproved, crl::guard(this, [=] {
-		if (!_history->peer || _history->peer->id.value != nyxTarget) return;
+		if (_history->peer->id.value != nyxTarget) return;
 		auto copy = options; copy.nyxMediaApproved = true;
 		sendInlineResult(result, bot, copy);
 	}))) return;

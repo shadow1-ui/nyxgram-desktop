@@ -1895,6 +1895,10 @@ void WebViewInstance::botSendPreparedMessage(
 					callback(u"MESSAGE_SEND_FAILED"_q);
 				}
 			};
+			// The native PreparedPreviewBox and recipient chooser already obtained
+			// explicit approval for this result/list. Do not replace that layer with
+			// one extra confirmation per recipient (which would cancel earlier rows).
+			options.nyxMediaApproved = true;
 			for (const auto &thread : list) {
 				bot->session().api().sendInlineResult(
 					bot,

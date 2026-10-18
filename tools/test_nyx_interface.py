@@ -71,7 +71,8 @@ check('const auto sent=box->lifetime().make_state<bool>(false)' in features,'one
 check('crl::on_main(controller' in features,'no nested event loop in send confirmation')
 preview=read('window/window_media_preview.cpp')
 check('_embedded ? st::boxBg : st::stickerPreviewBg' in preview,'preview follows native box palette')
-check('box = box.boundedTo(available)' in preview,'preview stays inside the native card')
+check('box = box.boundedTo(effectSpace)' in preview and '(available / kPremiumMultiplier)' in preview,'preview and premium effect stay inside the native card')
+check('options.nyxMediaApproved = true;' in read('inline_bots/bot_attach_web_view.cpp'),'prepared native multi-recipient preview does not stack confirmations')
 for module in ['history/history_widget.cpp','history/view/history_view_chat_section.cpp','history/view/history_view_scheduled_section.cpp','media/stories/media_stories_reply.cpp','settings/business/settings_shortcut_messages.cpp']:
  ui=read(module)
  check(ui.count('Nyxgram::ConfirmMedia(')==2,'document + inline native approval hooks: '+module)

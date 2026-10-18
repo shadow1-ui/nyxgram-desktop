@@ -1505,9 +1505,9 @@ bool ShortcutMessages::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
 		std::optional<MsgId> localId) {
-	const auto nyxTarget = _history->peer ? _history->peer->id.value : 0;
+	const auto nyxTarget = _history->peer->id.value;
 	if (!Nyxgram::ConfirmMedia(document, nyxTarget, options.nyxMediaApproved, crl::guard(this, [=] {
-		if (!_history->peer || _history->peer->id.value != nyxTarget) return;
+		if (_history->peer->id.value != nyxTarget) return;
 		auto copy = options; copy.nyxMediaApproved = true;
 		sendExistingDocument(document, std::move(copy), localId);
 	}))) return false;
@@ -1563,9 +1563,9 @@ void ShortcutMessages::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
-	const auto nyxTarget = _history->peer ? _history->peer->id.value : 0;
+	const auto nyxTarget = _history->peer->id.value;
 	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), nyxTarget, options.nyxMediaApproved, crl::guard(this, [=] {
-		if (!_history->peer || _history->peer->id.value != nyxTarget) return;
+		if (_history->peer->id.value != nyxTarget) return;
 		auto copy = options; copy.nyxMediaApproved = true;
 		sendInlineResult(result, bot, copy, localMessageId);
 	}))) return;

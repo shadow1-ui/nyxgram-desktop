@@ -1653,10 +1653,10 @@ bool ChatWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
-	const auto nyxTarget = _peer ? _peer->id.value : 0;
+	const auto nyxTarget = _peer->id.value;
 	const auto nyxReply = replyTo();
 	if (!Nyxgram::ConfirmMedia(document, nyxTarget, messageToSend.action.options.nyxMediaApproved, crl::guard(this, [=] {
-		if (!_peer || _peer->id.value != nyxTarget || replyTo() != nyxReply) return;
+		if (_peer->id.value != nyxTarget || replyTo() != nyxReply) return;
 		auto copy = messageToSend; copy.action.options.nyxMediaApproved = true;
 		sendExistingDocument(document, std::move(copy), localId);
 	}))) return false;
@@ -1755,10 +1755,10 @@ void ChatWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
-	const auto nyxTarget = _peer ? _peer->id.value : 0;
+	const auto nyxTarget = _peer->id.value;
 	const auto nyxReply = replyTo();
 	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), nyxTarget, options.nyxMediaApproved, crl::guard(this, [=] {
-		if (!_peer || _peer->id.value != nyxTarget || replyTo() != nyxReply) return;
+		if (_peer->id.value != nyxTarget || replyTo() != nyxReply) return;
 		auto copy = options; copy.nyxMediaApproved = true;
 		sendInlineResult(result, bot, copy, localMessageId);
 	}))) return;

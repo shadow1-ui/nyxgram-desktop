@@ -60,7 +60,7 @@ User screenshot of build 15 exposed an overlooked standalone Qt media-send dialo
 
 Media/GIF confirmation now uses a native embedded MediaPreviewWidget row with a theme-derived box background and bounded artwork. Ten composer document/inline paths resume only through weak-guarded explicit approval. The two lower-level sending gates also support asynchronous approval; inline results use shared ownership so closing an inline panel cannot invalidate a pending result. Cancellation completes API callbacks without sending. Calls use the same guarded native approval instead of QMessageBox. Preview pause state is released on destruction and changed renderer/API/call units are included in native preflight.
 
-Local checks: 89 interface source guards, 23 C++ parser units, 34 existing integration guards, palette/resource checks and git diff --check. apiwrap.h has an unchanged parser ambiguity at its enum parameter; its changed signature is checked separately. These are not a compiler or rendered Windows QA.
+Local checks: 90 interface source guards, 23 C++ parser units, 34 existing integration guards, palette/resource checks and git diff --check. apiwrap.h has an unchanged parser ambiguity at its enum parameter; its changed signature is checked separately. These are not a compiler or rendered Windows QA.
 
 Required Windows acceptance:
 - [ ] Sticker/static/animated/video sticker and GIF preview; light/dark/custom themes; 100–200% DPI; media remains inside the card, native buttons not clipped, no extra taskbar window.
@@ -69,3 +69,5 @@ Required Windows acceptance:
 - [ ] Normal chats, topics/monoforums, scheduled messages, stories, business shortcuts, inline bot results and prepared webview results.
 - [ ] Calls, import validation, export failure, update notices, profile copy/bookmarks and pin limit all follow Telegram's theme without standard Qt message boxes.
 - [ ] Preview animations stop when closing; normal hover previews still work and GIF pause state recovers.
+
+Prepared webview messages retain their existing native preview/recipient approval without opening one additional card per recipient. Premium-sticker effect bounds are included when sizing embedded media. Both paths have source regression guards; multi-recipient sending and premium effects still require Windows runtime QA.
