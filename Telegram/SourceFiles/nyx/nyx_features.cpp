@@ -15,6 +15,7 @@
 #include "ui/chat/chat_style_radius.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_advanced.h"
+#include "settings/cloud_password/settings_cloud_password_common.h"
 #include "window/themes/window_theme.h"
 #include "data/data_document.h"
 #include "api/api_updates.h"
@@ -104,10 +105,12 @@ void NativePinBox(Main::Session *session, const QString &title, bool repeat,
  const auto guard=base::make_weak(session);
  controller->show(Box([=](not_null<Ui::GenericBox*> box) {
   box->setTitle(rpl::single(title));
-  const auto pin=box->addRow(object_ptr<Ui::PasswordInput>(box,st::defaultInputField,
-   rpl::single(QString::fromUtf8(repeat?"Новый PIN: 4–12 цифр":"PIN локальной истории"))));
-  const auto confirm=repeat?box->addRow(object_ptr<Ui::PasswordInput>(box,st::defaultInputField,
-   rpl::single(QString::fromUtf8("Повторите PIN")))):nullptr;
+  // PasswordInput is a MaskedInputField, not RpWidget. Use Telegram's own
+  // layout adapter instead of passing it directly to GenericBox::addRow.
+  const auto pin=Settings::CloudPassword::AddPasswordField(box->verticalLayout(),
+   rpl::single(QString::fromUtf8(repeat?"Новый PIN: 4–12 цифр":"PIN локальной истории")),QString()).get();
+  const auto confirm=repeat?Settings::CloudPassword::AddPasswordField(box->verticalLayout(),
+   rpl::single(QString::fromUtf8("Повторите PIN")),QString()).get():nullptr;
   const auto save=[=] {
    if (!guard || !ArchiveController(guard.get())) { box->closeBox(); return; }
    const auto value=pin->text();

@@ -14,7 +14,7 @@
 ## Automated checks run locally
 
 - `python3 tools/check_nyx_port.py` — 34 existing source-integration checks.
-- `python3 tools/test_nyx_interface.py` — 43 interface wiring checks; 15 changed C++ files parsed with tree-sitter; palette reference/Qt resource checks; six foreground/background text pairs meet 4.5:1 contrast by calculation.
+- `python3 tools/test_nyx_interface.py` — 46 interface wiring checks; 15 changed C++ files parsed with tree-sitter; palette reference/Qt resource checks; six foreground/background text pairs meet 4.5:1 contrast by calculation.
 - `git diff --check`
 
 Dependencies for the new checks: `tree-sitter==0.26.0`, `tree-sitter-cpp==0.23.4`. A separate read-only PR workflow runs the checks, without build/signing secrets or release publication.
@@ -49,3 +49,7 @@ The second Windows run passed nyx_compile_check, then exposed a renderer error o
 ## Native settings correction
 
 Source checks now cover native Section factories/routing, no standalone main/features/history dialogs, no forced stylesheet, asynchronous native PIN layers, salt validation/retry throttle, guarded delayed actions, and TTL-before-unsupported snapshot handling. These checks do not replace MSVC compilation or visual inspection on Windows.
+
+### Native correction build 14 compiler follow-up
+
+Windows preflight found two root defects in the new native forms: `PasswordInput` derives from `MaskedInputField`, not `RpWidget`, and cannot be passed directly to `GenericBox::addRow`; the archive's `st::boxLabel` requires `style_layers.h`. Both PIN fields now use the existing `Settings::CloudPassword::AddPasswordField` layout adapter (UI only; no cloud-password API is invoked). Added the explicit layers-style include and three source regression guards. A fresh native build is required; local parser checks alone cannot verify C++ types.

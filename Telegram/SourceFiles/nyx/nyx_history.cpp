@@ -12,6 +12,7 @@
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "nyx/nyx_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
