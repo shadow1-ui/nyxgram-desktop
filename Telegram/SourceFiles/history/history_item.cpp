@@ -1,4 +1,6 @@
 #include "nyx/nyx_history.h"
+#include "nyx/nyx_features.h"
+#include "nyx/nyx_settings.h"
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -419,7 +421,21 @@ HistoryItem::HistoryItem(
 		_flags &= ~MessageFlag::HasPostAuthor;
 		_flags |= MessageFlag::Legacy;
 		createComponents(data);
-		setText(UnsupportedMessageText());
+		const auto localDeleted = Nyxgram::KeepDeletedMessages(history->session().uniqueId())
+			&& Nyxgram::ArchiveAllowed(history->session().uniqueId())
+			&& Nyxgram::IsDeletedCopy(history->session().uniqueId(), history->peer->id.value, id.bare);
+		if (localDeleted) {
+			auto text = TextWithEntities{
+				qs(data.vmessage()),
+				Api::EntitiesFromMTP(&history->session(), data.ventities().value_or_empty())
+			};
+			if (text.text.isEmpty()) {
+				text = { QString::fromUtf8("Удалённое медиа недоступно в этой версии Nyxgram."), {} };
+			}
+			setText(std::move(text));
+		} else {
+			setText(UnsupportedMessageText());
+		}
 	} else if (checked == MediaCheckResult::Empty) {
 		AddComponents(HistoryServiceData::Bit());
 		setServiceText({

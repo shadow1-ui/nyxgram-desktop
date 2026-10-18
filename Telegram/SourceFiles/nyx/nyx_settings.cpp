@@ -2,6 +2,9 @@
 #include "nyx/nyx_settings.h"
 #include "nyx/nyx_features.h"
 #include "nyx/nyx_history.h"
+#include "settings/settings_nyxgram.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -10,7 +13,6 @@
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include <QtCore/QDateTime>
-#include <QtWidgets/QComboBox>
 #include "core/application.h"
 #include "core/utils.h"
 #include "window/themes/window_theme.h"
@@ -33,14 +35,6 @@
 #include <QtGui/QScreen>
 #include <QtGui/QMouseEvent>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDialog>
-#include <QtWidgets/QVBoxLayout>
-#include <QtWidgets/QGridLayout>
-#include <QtWidgets/QScrollArea>
-#include <QtWidgets/QToolButton>
-#include <QtWidgets/QCheckBox>
-#include <QtWidgets/QPushButton>
-#include <QtWidgets/QLabel>
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QSplashScreen>
 
@@ -158,81 +152,44 @@ bool ToggleLocalPin(quint64 owner, quint64 peer) {
  Prefs().setValue(QString("pins/%1").arg(owner), state.ids);Prefs().sync();
  return true;
 }
-QString SettingsStyleSheet() {
- return QString::fromUtf8(R"(
- QDialog, QWidget#nyxBody, QTabWidget::pane { background:#10121c; color:#edf0f7; }
- QLabel, QCheckBox { color:#edf0f7; }
- QLabel { padding:2px 0; }
- QToolButton, QPushButton, QComboBox { background:#1d2030; color:#edf0f7; border:1px solid #383d55; border-radius:10px; padding:10px 12px; min-height:20px; }
- QPushButton:hover, QToolButton:hover, QComboBox:hover { background:#292d43; border-color:#8e80c9; }
- QPushButton:focus, QToolButton:focus, QComboBox:focus { border:2px solid #b6a2ef; }
- QToolButton:checked { border:2px solid #b6a2ef; background:#302a49; }
- QCheckBox { spacing:10px; padding:9px 0; }
- QCheckBox::indicator { width:20px; height:20px; }
- QTabWidget::pane { border:0; padding:8px; }
- QTabBar::tab { background:#1d2030; color:#bac0d4; padding:10px 12px; margin:2px; border-radius:8px; }
- QTabBar::tab:selected { background:#302a49; color:#e0d4ff; }
- QScrollArea { border:0; background:#10121c; }
- QScrollArea > QWidget > QWidget { background:#10121c; }
- QTextEdit, QLineEdit { background:#1d2030; color:#edf0f7; border:1px solid #383d55; border-radius:10px; padding:12px; selection-background-color:#605078; }
- QComboBox QAbstractItemView { background:#1d2030; color:#edf0f7; selection-background-color:#403655; }
- QScrollBar:vertical { background:transparent; width:8px; }
- QScrollBar::handle:vertical { background:#51566f; border-radius:4px; min-height:28px; }
- QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
- )");
-}
-
-void ShowSettings() {
- static QPointer<QDialog> open;
- if (open) { open->raise();open->activateWindow();return; }
- auto dialog = new QDialog(QApplication::activeWindow());open=dialog;
- dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowTitle("Nyxgram · 0.3.0");dialog->setWindowIcon(QIcon(IconPath()));dialog->resize(600,690);
- dialog->setStyleSheet(SettingsStyleSheet());
- auto root = new QVBoxLayout(dialog); root->setContentsMargins(24,24,24,24);root->setSpacing(16);
- auto area = new QScrollArea(dialog);area->setWidgetResizable(true);root->addWidget(area);
- auto body = new QWidget;body->setObjectName("nyxBody");area->setWidget(body);
- auto layout = new QVBoxLayout(body);layout->setSpacing(16);
- auto label=[&](const char *text) {auto l=new QLabel(QString::fromUtf8(text));l->setWordWrap(true);layout->addWidget(l);return l;};
- auto heading=label("Ваш Nyxgram");heading->setStyleSheet("font-size:26px;font-weight:600;");
- label("16 собственных иконок. Все доступны без Telegram Premium.");
- auto grid=new QGridLayout;grid->setSpacing(12);layout->addLayout(grid);
- auto buttons=std::make_shared<QList<QToolButton*>>();
- for(int i=0;i<kIcons.size();++i) {
-  auto b=new QToolButton(body);buttons->append(b);b->setText(kTitles[i]);b->setIcon(QIcon(QString(":/nyx/icons/%1.png").arg(kIcons[i])));b->setIconSize(QSize(62,62));b->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);b->setCheckable(true);b->setChecked(kIcons[i]==IconKey());b->setMinimumSize(96,100);b->setAccessibleName(kTitles[i]);grid->addWidget(b,i/4,i%4);
-  QObject::connect(b,&QToolButton::clicked,dialog,[=] {
-   Prefs().setValue("icon",kIcons[i]);Prefs().sync();
-   for(int j=0;j<buttons->size();++j) (*buttons)[j]->setChecked(j==i);
-   dialog->setWindowIcon(QIcon(IconPath()));Core::App().refreshApplicationIcon();
+QStringList IconKeys() { return kIcons; }
+QStringList IconTitles() { return kTitles; }
+void SetIconKey(const QString &key) {
+ if (!kIcons.contains(key)) return;
+ Prefs().setValue("icon", key); Prefs().sync();
+ Core::App().refreshApplicationIcon();
 #ifdef Q_OS_WIN
-   Platform::AppUserModelId::ValidateShortcut();
+ Platform::AppUserModelId::ValidateShortcut();
 #endif
-  });
+}
+int DeletedMarker() { return qBound(0, Prefs().value("deletedIcon", 0).toInt(), 3); }
+void SetDeletedMarker(int index) {
+ Prefs().setValue("deletedIcon", qBound(0, index, 3)); Prefs().sync();
+ RefreshDeletedCopies(ActiveSession());
+}
+void SetDeletedColor(const QString &color) {
+ const QStringList allowed = { "#d976a6", "#a98bfa", "#70d9e8", "#b7bed2" };
+ if (!allowed.contains(color)) return;
+ Prefs().setValue("deletedColor", color); Prefs().sync();
+ RefreshDeletedCopies(ActiveSession());
+}
+bool StartupEnabled() { return Prefs().value("startup", true).toBool(); }
+void SetStartupEnabled(bool enabled) { Prefs().setValue("startup", enabled); Prefs().sync(); }
+bool ApplyNyxTheme() {
+ const auto path = Materialize(":/nyx/night.tdesktop-theme", "nyx-night.tdesktop-theme");
+ if (path.isEmpty() || !Window::Theme::Apply(path)) return false;
+ Window::Theme::KeepApplied(); return true;
+}
+void RestoreNightTheme() {
+ Window::Theme::ApplyDefaultWithPath(QString(":/gui/night.tdesktop-theme"));
+ Window::Theme::KeepApplied();
+}
+void ShowSettings() {
+ if (const auto window = Core::App().activeWindow()) {
+  if (const auto controller = window->sessionController()) {
+   controller->showSettings(Settings::NyxgramMain::Id());
+  }
  }
- auto ghost=new QCheckBox(QString::fromUtf8("Призрачный режим"));const auto current=ActiveFeatureSession();const auto owner=current?current->uniqueId():0;ghost->setChecked(Policy(owner,"hideRead")&&Policy(owner,"hideOnline")&&Policy(owner,"hideTyping"));layout->insertWidget(0,ghost);QObject::connect(ghost,&QCheckBox::toggled,dialog,[owner](bool on){for(const auto &key:{"hideRead","hideOnline","hideTyping"})SetPolicy(owner,key,on);});
- auto features=new QPushButton(QString::fromUtf8("Приватность · Информация · История · Производительность"));layout->insertWidget(1,features);QObject::connect(features,&QPushButton::clicked,dialog,[dialog]{ShowFeatures(dialog);});
- auto accountTimer=new QTimer(dialog);QObject::connect(accountTimer,&QTimer::timeout,dialog,[=]{const auto active=ActiveFeatureSession();if(!active||active->uniqueId()!=owner)dialog->close();});accountTimer->start(100);
- auto premium=new QCheckBox(QString::fromUtf8("Локальный Telegram Premium"));premium->setChecked(LocalPremium(owner));layout->addWidget(premium);
- auto note=label(premium->isChecked()?"Локальная звезда Premium, выбор эмодзи и локальный эмодзи-статус включены. Серверная подписка не меняется.":"Звезда Premium в собственном профиле, выбор анимированных эмодзи и локальный эмодзи-статус. Другие пользователи не видят локальный статус. Серверные лимиты, бусты, расшифровка и платные реакции не меняются.");
- QObject::connect(premium,&QCheckBox::toggled,dialog,[=](bool checked){SetPolicy(owner,"localPremium",checked);RefreshLocalProfile();note->setText(QString::fromUtf8(checked?"Локальная звезда Premium, выбор эмодзи и локальный эмодзи-статус включены. Серверная подписка не меняется.":"Локальный Premium выключен. Бесплатные иконки остаются доступны."));});
- auto deleted=new QCheckBox(QString::fromUtf8("Показывать удалённые сообщения в чатах"));deleted->setChecked(KeepDeletedMessages());layout->addWidget(deleted);
- QObject::connect(deleted,&QCheckBox::toggled,dialog,[owner](bool checked){SetPolicy(owner,"keepDeleted",checked);if(!checked&&Core::App().domain().started()&&Core::App().domain().active().sessionExists())HideDeletedCopies(&Core::App().domain().active().session());});
- label("После удаления сообщение остаётся на месте: немного приглушённое, со значком рядом со временем. Копии шифруются для текущего пользователя Windows. Секретные, одноразовые сообщения и сообщения с таймером не сохраняются. Только полученные на этом устройстве сообщения; до 5000 копий / 8 МБ метаданных на аккаунт.");
- auto clearCopies=new QPushButton(QString::fromUtf8("Очистить локальные копии удалённых сообщений"));layout->addWidget(clearCopies);
- QObject::connect(clearCopies,&QPushButton::clicked,dialog,[dialog]{if(auto s=ActiveSession();s&&UnlockArchive(s)&&QMessageBox::question(dialog,"Nyxgram",QString::fromUtf8("Удалить все сохранённые копии текущего аккаунта на этом компьютере? Сообщения на сервере не изменятся."))==QMessageBox::Yes)ClearDeletedCopies(s);});
- auto marks=new QComboBox(body);marks->addItems({QString::fromUtf8("Корзина"),QString::fromUtf8("⌫ Удаление"),QString::fromUtf8("● Точка"),QString::fromUtf8("▱ Контур")});marks->setCurrentIndex(Prefs().value("deletedIcon",0).toInt());layout->addWidget(marks);
- QObject::connect(marks,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[](int index){Prefs().setValue("deletedIcon",index);RefreshDeletedCopies(ActiveSession());});
- auto colors=new QComboBox(body);colors->addItems({QString::fromUtf8("Розовый"),QString::fromUtf8("Лавандовый"),QString::fromUtf8("Голубой"),QString::fromUtf8("Серый")});const QStringList colorValues={"#d976a6","#a98bfa","#70d9e8","#b7bed2"};colors->setCurrentIndex(qMax(0,colorValues.indexOf(Prefs().value("deletedColor","#d976a6").toString())));layout->addWidget(colors);
- QObject::connect(colors,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[colorValues](int index){Prefs().setValue("deletedColor",colorValues[index]);RefreshDeletedCopies(ActiveSession());});
- auto startup=new QCheckBox(QString::fromUtf8("Показывать заставку Nyxgram"));startup->setChecked(Prefs().value("startup",true).toBool());layout->addWidget(startup);
- QObject::connect(startup,&QCheckBox::toggled,dialog,[](bool checked){Prefs().setValue("startup",checked);});
- auto night=new QPushButton(QString::fromUtf8("Применить «Nyx ночной»"));layout->addWidget(night);
- QObject::connect(night,&QPushButton::clicked,dialog,[=]{auto path=Materialize(":/nyx/night.tdesktop-theme","nyx-night.tdesktop-theme");if(!path.isEmpty()&&Window::Theme::Apply(path))Window::Theme::KeepApplied();else QMessageBox::warning(dialog,"Nyxgram",QString::fromUtf8("Не удалось применить тему."));});
- auto restore=new QPushButton(QString::fromUtf8("Стандартная ночная тема"));layout->addWidget(restore);
- QObject::connect(restore,&QPushButton::clicked,dialog,[]{Window::Theme::ApplyDefaultWithPath(QString(":/gui/night.tdesktop-theme"));Window::Theme::KeepApplied();});
- label("Локальные закрепления: до 500 на аккаунт. Нажмите правой кнопкой на чат → «Закрепить локально · Nyxgram». Они идут после серверных закреплений, не синхронизируются и не меняют состав папок. Убрать закрепление можно в том же меню.");
- label("Иконка окна меняется сразу. Для ярлыка Windows может потребоваться обновление рабочего стола. Значок самого EXE остаётся исходным Nyxgram; дополнительные ICO включены в архив.");
- auto close=new QPushButton(QString::fromUtf8("Готово"));root->addWidget(close);QObject::connect(close,&QPushButton::clicked,dialog,&QDialog::close);
- dialog->show();
 }
 void ShowStartup() {
  if (!Prefs().value("startup",true).toBool() || anim::Disabled() || Core::App().passcodeLocked()) return;

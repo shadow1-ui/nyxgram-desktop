@@ -16,7 +16,17 @@ QString ShortcutIconPath();
 QStringList LocalPins(quint64 owner);
 int LocalPinRank(quint64 owner, quint64 peer);
 bool ToggleLocalPin(quint64 owner, quint64 peer);
-QString SettingsStyleSheet();
+QStringList IconKeys();
+QStringList IconTitles();
+void SetIconKey(const QString &key);
+int DeletedMarker();
+void SetDeletedMarker(int index);
+void SetDeletedColor(const QString &color);
+bool StartupEnabled();
+void SetStartupEnabled(bool enabled);
+bool ApplyNyxTheme();
+void RestoreNightTheme();
+void RefreshLocalProfile();
 void ShowSettings();
 void ShowStartup();
 }

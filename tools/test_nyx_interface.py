@@ -36,15 +36,33 @@ check('isMedia && section.mediaType()' in read('info/media/info_media_list_widge
 s=read('mainwidget.cpp')
 check(s.index('setType(_player->entity()->playlistType())')<s.index('_playerPlaylist->showFromOther();'),'select type before opening')
 s=read('nyx/nyx_features.cpp')
-check('scroll->setWidgetResizable(true)' in s,'all feature tabs scroll')
-check('dialog->setStyleSheet(SettingsStyleSheet())' in s,'shared settings palette')
+check('QTabWidget' not in s and 'void ShowFeatures(QWidget *parent) { Q_UNUSED(parent); ShowSettings(); }' in s,'legacy feature entry routes to native settings')
+native=read('settings/settings_nyxgram.cpp')
+header=read('settings/settings_nyxgram.h')
+for name in ['Main','Privacy','Appearance','History','Performance','Profile','Updates']:
+ check('class Nyxgram'+name+' final : public Section<Nyxgram'+name+'>' in header,'native section factory: '+name)
+check('showOther(NyxgramMain::Id())' in read('settings/settings_main.cpp'),'native main-settings back-stack navigation')
+check('controller->showSettings(Settings::NyxgramMain::Id())' in read('nyx/nyx_settings.cpp'),'legacy main entry also routes natively')
+check('QDialog' not in read('nyx/nyx_settings.cpp'),'no separate Nyxgram settings window')
+check('setStyleSheet' not in native and 'settingsButtonNoIcon' in native,'native theme and settings controls')
+check('Current(controller)' in native and 'crl::guard(layout' in native,'session/lifetime guards for delayed choice callbacks')
+check('toggledChanges()' in native,'constructing controls does not mutate preferences')
+check('QInputDialog' not in s and 'void RequestArchiveAccess(' in s,'native asynchronous PIN access')
+check('salt.size()!=24' in s and 'now+60' in s and '5*60*1000' in s,'PIN salt validation, retry throttle and unlock timeout')
+check('QDialog' not in read('nyx/nyx_history.cpp') and 'not_null<Ui::GenericBox*>' in read('nyx/nyx_history.cpp'),'history search stays in Telegram')
+archive=read('nyx/nyx_history.cpp')
+check(archive.index('if(!Eligible(message))') < archive.index('if (UnsupportedSnapshot(message))'),'TTL purge precedes unsupported fallback')
+check('!UnsupportedSnapshot(previous)' in archive,'keep recoverable snapshot before unsupported stub')
+check('item->applyEdition(std::move(edition))' in archive,'restore captured content into retained live item')
+check('if (localDeleted)' in read('history/history_item.cpp'),'local fallback does not suppress unsupported notices for ordinary messages')
 check('Нажатие строки ID/DC копирует только ID.' not in s,'verbose technical text removed')
 print(f'PASS: {checks} desktop interface source-integration checks (not runtime tests)')
 parser=Parser(Language(tree_sitter_cpp.language()))
 files=['history/view/history_view_bottom_info.cpp','history/view/history_view_message.cpp',
  'info/media/info_media_list_widget.cpp','mainwidget.cpp','media/player/media_player_panel.cpp',
  'media/player/media_player_panel.h','media/player/media_player_widget.cpp','media/player/media_player_widget.h',
- 'nyx/nyx_features.cpp','nyx/nyx_settings.cpp','nyx/nyx_settings.h']
+ 'nyx/nyx_features.cpp','nyx/nyx_settings.cpp','nyx/nyx_settings.h',
+ 'settings/settings_nyxgram.cpp','settings/settings_nyxgram.h','nyx/nyx_history.cpp','history/history_item.cpp']
 for f in files:
  tree=parser.parse((r/f).read_bytes())
  check(not tree.root_node.has_error,'C++ parser syntax: '+f)
@@ -88,9 +106,9 @@ print('PASS: five Qt 5/lib_ui Windows compiler regression guards')
 # Ensure every newly changed rendering/player integration unit gets a native preflight.
 cmake=(r.parent/'CMakeLists.txt').read_text()
 preflight=cmake[cmake.index('add_library(nyx_compile_check OBJECT'):cmake.index('target_link_libraries(nyx_compile_check')]
-for unit in ['history/view/history_view_bottom_info.cpp','media/player/media_player_widget.cpp','media/player/media_player_panel.cpp','info/media/info_media_list_widget.cpp','mainwidget.cpp']:
+for unit in ['settings/settings_nyxgram.cpp','history/view/history_view_bottom_info.cpp','media/player/media_player_widget.cpp','media/player/media_player_panel.cpp','info/media/info_media_list_widget.cpp','mainwidget.cpp']:
  check('${src_loc}/'+unit in preflight,'native compile preflight: '+unit)
-print('PASS: all five extra rendering/player units included in native C++ preflight')
+print('PASS: all six native settings/rendering/player units included in native C++ preflight')
 
 # Manual stable publication is explicit and remains downstream of successful compilation.
 workflow=(r.parents[1]/'.github/workflows/win.yml').read_text()

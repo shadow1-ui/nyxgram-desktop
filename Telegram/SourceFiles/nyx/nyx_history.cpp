@@ -5,13 +5,17 @@
 #include <QtCore/QCryptographicHash>
 #include "data/data_user.h"
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QDialog>
-#include <QtWidgets/QVBoxLayout>
-#include <QtWidgets/QLineEdit>
-#include <QtWidgets/QTextEdit>
+#include "core/application.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
+#include "ui/layers/generic_box.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/labels.h"
+#include "styles/style_boxes.h"
 #include "nyx/nyx_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_edition.h"
 #include "history/history_item_helpers.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -111,6 +115,11 @@ void FlushDeletedCopies(){
   const auto encrypted=Protect(clear,i.key(),true);if(encrypted.isEmpty())continue;QSaveFile file(Path(i.key()));if(file.open(QIODevice::WriteOnly)&&file.write(encrypted)==encrypted.size()&&file.commit())state.dirty=false;
  }
 }
+bool UnsupportedSnapshot(const MTPMessage &message) {
+ if (message.type() != mtpc_message) return false;
+ const auto media = message.c_message().vmedia();
+ return media && media->type() == mtpc_messageMediaUnsupported;
+}
 QByteArray Semantic(const MTPMessage &message){mtpBuffer b;const auto &m=message.c_message();m.vmessage().write(b);if(const auto entities=m.ventities())entities->write(b);if(const auto media=m.vmedia())media->write(b);return QByteArray(reinterpret_cast<const char*>(b.data()),int(b.size()*sizeof(mtpPrime)));}
 void CaptureMessage(quint64 owner,quint64 peer,const MTPMessage &message){
  if(!owner)return;
@@ -119,6 +128,13 @@ void CaptureMessage(quint64 owner,quint64 peer,const MTPMessage &message){
  }
  auto &state=Read(owner);const auto body=Encode(message);if(body.size()>512*1024)return;
  const auto key=Key(peer,IdFromMessage(message).bare);
+ // Eligibility / TTL purging above must happen before this fallback. Never replace
+ // an already received, renderable copy with an MTProto unsupported-media stub.
+ if (UnsupportedSnapshot(message)) {
+  MTPMessage previous;
+  if (Decode(state.snapshots.value(key, state.deleted.value(key)), previous)
+      && !UnsupportedSnapshot(previous)) return;
+ }
  if(Policy(owner,"keepEdits")){MTPMessage old;const auto previous=state.snapshots.value(key);if(previous!=body&&Decode(previous,old)&&Semantic(old)!=Semantic(message)){state.edits.append({key,previous,QDateTime::currentSecsSinceEpoch()});while(state.edits.size()>3000)state.edits.removeFirst();state.dirty=true;ScheduleFlush();}}
  state.snapshots.insert(key,body);
  int bytes=0;for(const auto &v:state.snapshots)bytes+=v.size();
@@ -131,6 +147,18 @@ bool RetainDeletedMessage(HistoryItem *item){
  const auto body=state.snapshots.value(key,state.deleted.value(key));MTPMessage m;if(!Decode(body,m))return false;
  state.deleted.insert(key,body);state.deletedAt.insert(key,QDateTime::currentSecsSinceEpoch());state.order.removeOne(key);state.order.append(key);while(state.order.size()>kLimit)state.deleted.remove(state.order.takeFirst());state.dirty=true;ScheduleFlush();
  if(!ArchiveAllowed(owner))return false;
+ // Restore the captured version, not a live item that may now contain Telegram's
+ // generic unsupported-media notice. The snapshot has already passed TTL checks.
+ if (item->originalText().text == UnsupportedMessageText().text) {
+  auto edition = HistoryMessageEdition(&item->history()->session(), m.c_message());
+  if (UnsupportedSnapshot(m)) {
+   edition.mtpMedia = nullptr;
+   if (edition.textWithEntities.text.isEmpty()) {
+    edition.textWithEntities = { QString::fromUtf8("Удалённое медиа недоступно в этой версии Nyxgram."), {} };
+   }
+  }
+  item->applyEdition(std::move(edition));
+ }
  if(!item->nyxDeleted)item->history()->itemVanished(item);item->nyxDeleted=true;item->history()->owner().notifyItemDataChange(item);item->history()->owner().requestItemResize(item);item->history()->owner().requestItemRepaint(item);
  // Let the native API refresh the authoritative last message / dialog counters.
  item->history()->requestChatListMessage();return true;
@@ -143,8 +171,59 @@ QVector<MTPMessage> MergeDeletedMessages(History *history,const QVector<MTPMessa
  int added=0;for(auto it=state.order.crbegin();it!=state.order.crend()&&added<100;++it){const auto parts=it->split(':');if(parts[0].toULongLong()!=peer)continue;const auto mid=parts[1].toInt();if(ids.contains(mid)||(!source.isEmpty()&&(mid<min||(!latest&&mid>max))))continue;MTPMessage m;if(Decode(state.deleted.value(*it),m)){result.append(m);++added;}}
  std::sort(result.begin(),result.end(),[](const auto &a,const auto &b){return IdFromMessage(a).bare>IdFromMessage(b).bare;});return result;
 }
-void ShowLocalHistory(Main::Session *session,quint64 peer,int mid){
- if(!session||!UnlockArchive(session))return;const auto owner=session->uniqueId();const auto guard=base::make_weak(session);auto dialog=new QDialog(QApplication::activeWindow());dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowTitle(QString::fromUtf8("Локальная история · Nyxgram"));dialog->resize(650,650);auto layout=new QVBoxLayout(dialog);auto search=new QLineEdit;search->setPlaceholderText(QString::fromUtf8("Поиск по сохранённым сообщениям"));layout->addWidget(search);auto text=new QTextEdit;text->setReadOnly(true);layout->addWidget(text);const auto update=[=](const QString &query){if(!guard||ActiveFeatureSession()!=guard.get()||!ArchiveAllowed(owner)){dialog->close();return;}auto &state=Read(owner);Prune(owner,state);QStringList lines;auto add=[&](const QString &key,const QByteArray &body,const QString &kind){const auto parts=key.split(':');if(peer&&parts[0].toULongLong()!=peer||mid&&parts[1].toInt()!=mid)return;MTPMessage m;if(!Decode(body,m))return;const auto value=qs(m.c_message().vmessage());if(!query.isEmpty()&&!value.contains(query,Qt::CaseInsensitive))return;lines<<kind+" · "+key+"\n"+value;};for(auto i=state.edits.crbegin();i!=state.edits.crend()&&lines.size()<1000;++i)add(i->key,i->body,QString::fromUtf8("Предыдущая версия"));for(auto i=state.order.crbegin();i!=state.order.crend()&&lines.size()<1000;++i)add(*i,state.deleted.value(*i),QString::fromUtf8("Удалено"));text->setPlainText(lines.join("\n\n────────────\n\n"));};QObject::connect(search,&QLineEdit::textChanged,dialog,update);auto timer=new QTimer(dialog);QObject::connect(timer,&QTimer::timeout,dialog,[=]{if(!guard||ActiveFeatureSession()!=guard.get()||!ArchiveAllowed(owner)){text->clear();dialog->close();}});timer->start(500);update({});dialog->show();
+void ShowLocalHistory(Main::Session *session, quint64 peer, int mid) {
+ if (!session || ActiveFeatureSession()!=session) return;
+ if (!ArchiveAllowed(session->uniqueId())) {
+  const auto weak=base::make_weak(session);
+  RequestArchiveAccess(session,[=] { if (weak) ShowLocalHistory(weak.get(),peer,mid); });
+  return;
+ }
+ const auto window = Core::App().activeWindow();
+ const auto controller = window ? window->sessionController() : nullptr;
+ if (!controller || &controller->session()!=session) return;
+ const auto owner = session->uniqueId();
+ const auto guard = base::make_weak(session);
+ controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+  box->setTitle(rpl::single(QString::fromUtf8("Локальная история")));
+  box->setWidth(560); box->setMaxHeight(640);
+  const auto search = box->addRow(object_ptr<Ui::InputField>(box, st::defaultInputField,
+   rpl::single(QString::fromUtf8("Поиск по сохранённым сообщениям"))));
+  const auto output = box->lifetime().make_state<rpl::variable<QString>>();
+  box->addRow(object_ptr<Ui::FlatLabel>(box, output->value(), st::boxLabel));
+  const auto allowed = [=] { return guard && ActiveFeatureSession()==guard.get() && ArchiveAllowed(owner); };
+  const auto update = [=] {
+   if (!allowed()) { *output=QString(); box->closeBox(); return; }
+   auto &state = Read(owner); Prune(owner,state);
+   const auto query = search->getLastText();
+   QStringList lines; int characters=0;
+   const auto add = [&](const QString &key, const QByteArray &body, const QString &kind, qint64 at) {
+    if (lines.size()>=1000 || characters>=256*1024) return;
+    const auto parts = key.split(':');
+    if (parts.size()!=2 || (peer && parts[0].toULongLong()!=peer) || (mid && parts[1].toInt()!=mid)) return;
+    MTPMessage message; if (!Decode(body,message)) return;
+    auto text = qs(message.c_message().vmessage());
+    if (!query.isEmpty() && !text.contains(query,Qt::CaseInsensitive)) return;
+    if (text.isEmpty()) text=QString::fromUtf8("Медиа: текстовая копия отсутствует.");
+    const auto date = at ? QDateTime::fromSecsSinceEpoch(at).toLocalTime().toString("dd.MM.yyyy HH:mm") : QString();
+    const auto line = kind + (date.isEmpty()?QString():QString(" · ")+date) + "\n" + text.left(16384);
+    characters += line.size(); lines.push_back(line);
+   };
+   for (auto i=state.edits.crbegin();i!=state.edits.crend();++i)
+    add(i->key,i->body,QString::fromUtf8("Предыдущая версия"),i->at);
+   for (auto i=state.order.crbegin();i!=state.order.crend();++i)
+    add(*i,state.deleted.value(*i),QString::fromUtf8("Удалено"),state.deletedAt.value(*i));
+   *output = lines.isEmpty()?QString::fromUtf8("Сохранённых сообщений не найдено.") : lines.join("\n\n────────────\n\n");
+  };
+  search->changes() | rpl::start_with_next(update,box->lifetime());
+  box->setFocusCallback([=] { search->setFocusFast(); });
+  auto timer = new QTimer(box);
+  QObject::connect(timer,&QTimer::timeout,box,[=] {
+   if (!allowed()) { *output=QString(); box->closeBox(); }
+  });
+  timer->start(500);
+  box->addButton(rpl::single(QString::fromUtf8("Закрыть")),[=] { box->closeBox(); });
+  update();
+ }));
 }
 
 namespace {

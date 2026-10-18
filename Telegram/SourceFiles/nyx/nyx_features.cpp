@@ -23,6 +23,10 @@
 #include "window/window_session_controller.h"
 #include "window/window_media_preview.h"
 #include "ui/power_saving.h"
+#include "ui/layers/generic_box.h"
+#include "ui/widgets/fields/password_input.h"
+#include "ui/boxes/confirm_box.h"
+#include "styles/style_boxes.h"
 #include "settings.h"
 #include <QtCore/QSettings>
 #include <QtCore/QPointer>
@@ -44,20 +48,13 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QVBoxLayout>
-#include <QtWidgets/QTabWidget>
-#include <QtWidgets/QScrollArea>
 #include <QtCore/QDir>
 #include <QtWidgets/QLabel>
-#include <QtWidgets/QCheckBox>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QDialogButtonBox>
-#include <QtWidgets/QComboBox>
-#include <QtWidgets/QInputDialog>
-#include <QtWidgets/QLineEdit>
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QFileDialog>
-#include <QtWidgets/QTextEdit>
 namespace Nyxgram {
 namespace {
 QSettings &Store(){static QSettings p(cWorkingDir()+QString("tdata/nyx/preferences.ini"),QSettings::IniFormat);return p;}
@@ -94,17 +91,109 @@ bool ConfirmCall(quint64 owner,const QString &name,bool video){if(!Policy(owner,
 void ApplyPerformance(){const auto s=ActiveFeatureSession();if(!s)return;const auto owner=s->uniqueId();currentFeatureOwner=owner;using namespace PowerSaving;auto flags=Current();const auto original=QString("originalPowerBaseline");if(!Store().contains(original))Store().setValue(original,int(flags.value()));flags=Flags::from_raw(Store().value(original).toUInt());if(Policy(owner,"noAnimations"))flags|=kAnimations|kChatBackground|kChatEffects;if(Policy(owner,"noEmoji"))flags|=kEmojiPanel|kEmojiChat|kEmojiReactions|kEmojiStatus;if(Policy(owner,"noStickers"))flags|=kStickersPanel|kStickersChat;Set(flags);}
 bool ArchiveAllowed(quint64 owner){return !Core::App().passcodeLocked()&&(!Policy(owner,"protectArchive")||unlocked.value(owner,0)>crl::now());}
 void LockArchive(){unlocked.clear();HideLockedSessions();}
-bool UnlockArchive(Main::Session *s){if(!s)return false;const auto weak=base::make_weak(s);const auto owner=s->uniqueId();if(ArchiveAllowed(owner))return true;const auto now=QDateTime::currentSecsSinceEpoch();if(Store().value(Key(owner,"pinRetry"),0).toLongLong()>now)return false;bool ok=false;const auto pin=QInputDialog::getText(QApplication::activeWindow(),"Nyxgram",QString::fromUtf8("Введите PIN локальной истории"),QLineEdit::Password,{},&ok);if(!ok||!weak||Core::App().passcodeLocked())return false;const auto salt=QByteArray::fromBase64(Store().value(Key(owner,"pinSalt")).toByteArray());const auto hash=QByteArray::fromBase64(Store().value(Key(owner,"pinHash")).toByteArray());if(hash.size()!=32||!Equal(PinHash(pin,salt),hash)){const auto fails=Store().value(Key(owner,"pinFailures"),0).toInt()+1;Store().setValue(Key(owner,"pinFailures"),fails);if(fails>=5)Store().setValue(Key(owner,"pinRetry"),now+60);Store().sync();return false;}Store().setValue(Key(owner,"pinFailures"),0);unlocked[owner]=crl::now()+5*60*1000;return true;}
+namespace {
+Window::SessionController *ArchiveController(Main::Session *session) {
+ if (!session || ActiveFeatureSession()!=session || Core::App().passcodeLocked()) return nullptr;
+ const auto window=Core::App().activeWindow();
+ const auto controller=window?window->sessionController():nullptr;
+ return controller && &controller->session()==session ? controller : nullptr;
+}
+void NativePinBox(Main::Session *session, const QString &title, bool repeat,
+ Fn<bool(const QString&)> submit) {
+ const auto controller=ArchiveController(session); if (!controller) return;
+ const auto guard=base::make_weak(session);
+ controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+  box->setTitle(rpl::single(title));
+  const auto pin=box->addRow(object_ptr<Ui::PasswordInput>(box,st::defaultInputField,
+   rpl::single(QString::fromUtf8(repeat?"Новый PIN: 4–12 цифр":"PIN локальной истории"))));
+  const auto confirm=repeat?box->addRow(object_ptr<Ui::PasswordInput>(box,st::defaultInputField,
+   rpl::single(QString::fromUtf8("Повторите PIN")))):nullptr;
+  const auto save=[=] {
+   if (!guard || !ArchiveController(guard.get())) { box->closeBox(); return; }
+   const auto value=pin->text();
+   if (confirm && (value.size()<4 || value.size()>12
+       || !std::all_of(value.begin(),value.end(),[](QChar c){return c>='0'&&c<='9';})
+       || value!=confirm->text())) { pin->showError(); confirm->showError(); return; }
+   if (submit(value)) box->closeBox(); else pin->showError();
+  };
+  box->addButton(rpl::single(QString::fromUtf8(repeat?"Сохранить":"Открыть")),save);
+  box->addButton(rpl::single(QString::fromUtf8("Отмена")),[=] { box->closeBox(); });
+  QObject::connect(pin,&Ui::MaskedInputField::submitted,box,[=] { save(); });
+  if (confirm) QObject::connect(confirm,&Ui::MaskedInputField::submitted,box,[=] { save(); });
+  box->setFocusCallback([=] { pin->setFocus(); });
+  const auto timer=new QTimer(box);
+  QObject::connect(timer,&QTimer::timeout,box,[=] {
+   if (!guard || !ArchiveController(guard.get()) || QGuiApplication::applicationState()!=Qt::ApplicationActive) box->closeBox();
+  });
+  timer->start(100);
+ }));
+}
+}
+void RequestArchiveAccess(Main::Session *session, Fn<void()> done) {
+ if (!ArchiveController(session)) return;
+ const auto owner=session->uniqueId(); const auto guard=base::make_weak(session);
+ if (ArchiveAllowed(owner)) { done(); return; }
+ if (Store().value(Key(owner,"pinRetry"),0).toLongLong()>QDateTime::currentSecsSinceEpoch()) {
+  ArchiveController(session)->show(Ui::MakeInformBox(QString::fromUtf8("Слишком много попыток. Подождите минуту."))); return;
+ }
+ NativePinBox(session,QString::fromUtf8("Открыть локальную историю"),false,[=](const QString &pin) {
+  if (!guard || !ArchiveController(guard.get())) return false;
+  const auto now=QDateTime::currentSecsSinceEpoch();
+  if (Store().value(Key(owner,"pinRetry"),0).toLongLong()>now) return false;
+  const auto salt=QByteArray::fromBase64(Store().value(Key(owner,"pinSalt")).toByteArray());
+  const auto hash=QByteArray::fromBase64(Store().value(Key(owner,"pinHash")).toByteArray());
+  if (hash.size()!=32 || salt.size()!=24 || !Equal(PinHash(pin,salt),hash)) {
+   const auto fails=Store().value(Key(owner,"pinFailures"),0).toInt()+1;
+   Store().setValue(Key(owner,"pinFailures"),fails);
+   if (fails>=5) Store().setValue(Key(owner,"pinRetry"),now+60);
+   Store().sync(); return false;
+  }
+  Store().setValue(Key(owner,"pinFailures"),0); Store().remove(Key(owner,"pinRetry")); Store().sync();
+  unlocked[owner]=crl::now()+5*60*1000;
+  // Run after closing the PIN layer, never through a nested blocking event loop.
+  crl::on_main(session,[=] { if (guard && ArchiveController(guard.get()) && ArchiveAllowed(owner)) done(); });
+  return true;
+ });
+}
 void ApplySessionFeatures(Main::Session *s){if(!s)return;if(std::none_of(featureSessions.begin(),featureSessions.end(),[=](const auto &weak){return weak.get()==s;}))featureSessions.push_back(base::make_weak(s));ApplyPerformance();if(!ArchiveAllowed(s->uniqueId()))HideDeletedCopies(s);static bool connected=false;if(!connected){connected=true;QObject::connect(qApp,&QGuiApplication::applicationStateChanged,[](Qt::ApplicationState state){if(state!=Qt::ApplicationActive)LockArchive();});auto timer=new QTimer(qApp);QObject::connect(timer,&QTimer::timeout,[]{HideLockedSessions();});timer->start(1000);}CheckDesktopUpdates(false);}
-void ShowFeatures(QWidget *parent){
- const auto session=ActiveFeatureSession();if(!session)return;const auto owner=session->uniqueId();const auto guard=base::make_weak(session);auto dialog=new QDialog(parent?parent:QApplication::activeWindow());dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowTitle(QString::fromUtf8("Возможности Nyxgram"));dialog->resize(760,680);dialog->setMinimumSize(560,440);dialog->setStyleSheet(SettingsStyleSheet());auto accountTimer=new QTimer(dialog);QObject::connect(accountTimer,&QTimer::timeout,dialog,[=]{if(!guard||ActiveFeatureSession()!=guard.get())dialog->close();});accountTimer->start(100);auto main=new QVBoxLayout(dialog);main->setContentsMargins(20,20,20,20);auto tabs=new QTabWidget;tabs->setUsesScrollButtons(true);tabs->setElideMode(Qt::ElideRight);main->addWidget(tabs);auto tab=[&](const char *title){auto w=new QWidget;w->setObjectName("nyxBody");auto l=new QVBoxLayout(w);l->setSpacing(10);l->setContentsMargins(16,12,16,12);auto scroll=new QScrollArea;scroll->setWidgetResizable(true);scroll->setWidget(w);tabs->addTab(scroll,QString::fromUtf8(title));return l;};auto check=[&](QVBoxLayout*l,const char*text,const char*key,bool fallback=false){auto w=new QCheckBox(QString::fromUtf8(text));w->setChecked(Policy(owner,key,fallback));l->addWidget(w);QObject::connect(w,&QCheckBox::toggled,dialog,[=](bool on){if(!guard)return;SetPolicy(owner,key,on);ApplyPerformance();});};auto button=[&](QVBoxLayout*l,const char*text,auto callback){auto b=new QPushButton(QString::fromUtf8(text));l->addWidget(b);QObject::connect(b,&QPushButton::clicked,dialog,callback);};
- auto privacy=tab("Приватность");check(privacy,"Не отправлять отметки прочтения","hideRead");check(privacy,"Скрывать сетевой статус","hideOnline");check(privacy,"Не отправлять «печатает» и запись медиа","hideTyping");check(privacy,"Просматривать истории без отправки просмотра","storyGhost");Note(privacy,QString::fromUtf8("Истории: экспериментальная клиентская защита без Premium. Ответы, реакции и другие клиенты могут раскрыть просмотр. Гарантии анонимности нет."));check(privacy,"Скрывать собственный номер на этом устройстве","hidePhone");check(privacy,"Подтверждать исходящие звонки","confirmCalls");check(privacy,"Предпросмотр и подтверждение стикеров","confirmStickers",true);check(privacy,"Предпросмотр и подтверждение GIF","confirmGifs",true);privacy->addStretch();
- auto info=tab("Информация");check(info,"Показывать ID профиля, группы и канала","showId",true);check(info,"Показывать DC рядом с ID","showDc",true);Note(info,QString::fromUtf8("DC — хранилище фото. Ссылки и закладки — в меню имени пользователя."));button(info,"Сохранённые профили",[=]{if(!guard)return;QMenu menu;for(const auto &raw:Store().value(Key(owner,"profiles")).toStringList()){const auto peer=guard->data().peer(PeerId(raw.toULongLong()));auto sub=menu.addMenu(peer->name());sub->addAction(QString::fromUtf8("Открыть профиль"),[=]{if(guard)if(auto w=Core::App().activeWindow();w&&w->sessionController()&& &w->sessionController()->session()==guard.get())w->sessionController()->showPeerInfo(peer);});sub->addAction(QString::fromUtf8("Скопировать ID"),[=]{if(guard)QGuiApplication::clipboard()->setText(ProfileId(peer));});sub->addAction(QString::fromUtf8("Удалить закладку"),[=]{auto pins=Store().value(Key(owner,"profiles")).toStringList();pins.removeAll(raw);Store().setValue(Key(owner,"profiles"),pins);Store().sync();});}menu.exec(QCursor::pos());});auto folders=new QComboBox;folders->addItem(QString::fromUtf8("Все чаты при запуске"),0);for(const auto &f:session->data().chatsFilters().list())if(f.id()>0)folders->addItem(f.titleText().text,f.id());folders->setCurrentIndex(qMax(0,folders->findData(NumberPolicy(owner,"startupFolder",0))));info->addWidget(folders);QObject::connect(folders,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[=](int index){Store().setValue(Key(owner,"startupFolder"),folders->itemData(index).toInt());Store().sync();});info->addStretch();
- auto perf=tab("Производительность");button(perf,"Включить облегчённый режим",[=]{if(!guard)return;for(const auto &key:{"noAnimations","noEmoji","noStickers","noGifs","noVideos","noDownloads","noBlur"})SetPolicy(owner,key,true);ApplyPerformance();dialog->close();});button(perf,"Выключить облегчённый режим",[=]{if(!guard)return;for(const auto &key:{"noAnimations","noEmoji","noStickers","noGifs","noVideos","noDownloads","noBlur"})SetPolicy(owner,key,false);ApplyPerformance();dialog->close();});for(const auto &entry:std::vector<std::pair<const char*,const char*>>{{"Отключить анимации и эффекты","noAnimations"},{"Отключить анимированные эмодзи","noEmoji"},{"Отключить анимацию стикеров","noStickers"},{"Отключить автопроигрывание GIF","noGifs"},{"Отключить автопроигрывание видео","noVideos"},{"Отключить автоматическую загрузку медиа","noDownloads"},{"Отключить размытие","noBlur"}})check(perf,entry.first,entry.second);Note(perf,QString::fromUtf8("Явно выбранное медиа в окне предпросмотра можно просмотреть отдельно от автопроигрывания в чатах."));button(perf,"Нативные настройки загрузки и памяти",[=]{if(guard)if(auto w=Core::App().activeWindow();w&&w->sessionController())w->sessionController()->showSettings(Settings::Advanced::Id());});perf->addStretch();
- auto history=tab("История");check(history,"Показывать удалённые сообщения в чатах","keepDeleted",KeepDeletedMessages(owner));check(history,"Сохранять историю редактирования","keepEdits");Note(history,QString::fromUtf8("Только полученные ранее версии, локально и с шифрованием Windows. Самоуничтожающиеся сообщения не сохраняются."));button(history,"Открыть историю и поиск",[=]{if(guard&&UnlockArchive(guard.get()))ShowLocalHistory(guard.get(),0,0);});button(history,"Установить / сменить PIN истории",[=]{if(!guard)return;if(Policy(owner,"protectArchive")&&!UnlockArchive(guard.get()))return;bool ok=false;auto pin=QInputDialog::getText(dialog,"Nyxgram",QString::fromUtf8("Новый PIN: от 4 до 12 цифр"),QLineEdit::Password,{},&ok);if(!ok||pin.size()<4||pin.size()>12||!std::all_of(pin.begin(),pin.end(),[](QChar c){return c>='0'&&c<='9';}))return;const auto repeat=QInputDialog::getText(dialog,"Nyxgram",QString::fromUtf8("Повторите PIN"),QLineEdit::Password,{},&ok);if(!ok||pin!=repeat)return;QByteArray salt(24,0);for(auto &c:salt)c=char(QRandomGenerator::system()->generate());Store().setValue(Key(owner,"pinSalt"),salt.toBase64());Store().setValue(Key(owner,"pinHash"),PinHash(pin,salt).toBase64());SetPolicy(owner,"protectArchive",true);unlocked[owner]=crl::now()+300000;});button(history,"Заблокировать локальную историю",[]{LockArchive();});button(history,"Отключить PIN (требуется текущий PIN)",[=]{if(guard&&UnlockArchive(guard.get())){SetPolicy(owner,"protectArchive",false);unlocked.remove(owner);}});auto retention=new QComboBox;for(int days:{7,30,90,365,0})retention->addItem(days?QString::number(days)+QString::fromUtf8(" дней хранения"):QString::fromUtf8("Без срока хранения"),days);retention->setCurrentIndex(qMax(0,retention->findData(NumberPolicy(owner,"retention",30))));history->addWidget(retention);QObject::connect(retention,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[=](int i){Store().setValue(Key(owner,"retention"),retention->itemData(i).toInt());Store().sync();});button(history,"Очистить локальную историю",[=]{if(guard&&UnlockArchive(guard.get())&&QMessageBox::question(dialog,"Nyxgram",QString::fromUtf8("Удалить сохранённые копии и версии на этом компьютере?"))==QMessageBox::Yes)ClearDeletedCopies(guard.get());});history->addStretch();
-
- auto appearance=tab("Оформление");auto draft=std::make_shared<QMap<QString,bool>>();for(const auto &key:{"stickerTime","gifTime","roundTime","avatars","dates"})(*draft)[key]=Policy(owner,key);auto preview=new QTextEdit;preview->setReadOnly(true);preview->setMaximumHeight(170);appearance->addWidget(preview);auto render=[=]{preview->setHtml(QString::fromUtf8("<p><b>Предпросмотр переписки</b></p><p>%1Здравствуйте! Это локальный пример.%2</p><p>%3</p><p>%4</p>").arg(draft->value("avatars")?QString():QString::fromUtf8("● "),draft->value("dates")?QString():QString::fromUtf8(" · Сегодня"),draft->value("stickerTime")?QString::fromUtf8("Стикер · без времени"):QString::fromUtf8("Стикер · 12:34"),draft->value("gifTime")?QString::fromUtf8("GIF · без времени"):QString::fromUtf8("GIF · 12:35")));};auto styleBoxes=std::make_shared<QList<QCheckBox*>>();const QStringList styleKeys={"stickerTime","gifTime","roundTime","avatars","dates"};const QStringList styleLabels={QString::fromUtf8("Скрывать время стикеров"),QString::fromUtf8("Скрывать время GIF"),QString::fromUtf8("Скрывать время видеосообщений"),QString::fromUtf8("Скрывать аватары в переписке"),QString::fromUtf8("Скрывать разделители дат")};for(int i=0;i<styleKeys.size();++i){auto w=new QCheckBox(styleLabels[i]);w->setChecked(draft->value(styleKeys[i]));styleBoxes->append(w);appearance->addWidget(w);QObject::connect(w,&QCheckBox::toggled,dialog,[=](bool on){(*draft)[styleKeys[i]]=on;render();});}auto preset=new QComboBox;preset->addItems({QString::fromUtf8("Стандартный"),QString::fromUtf8("Nyx ночной"),QString::fromUtf8("Компактный"),QString::fromUtf8("Минимальный")});appearance->addWidget(preset);QObject::connect(preset,QOverload<int>::of(&QComboBox::currentIndexChanged),dialog,[=](int n){for(int i=0;i<styleKeys.size();++i)(*styleBoxes)[i]->setChecked(n==3||(n==2&&i<3)||(n==1&&i==0));render();});auto compact=new QCheckBox(QString::fromUtf8("Компактная форма пузырей (после перезапуска)"));compact->setChecked(base::options::lookup<bool>(Ui::kOptionUseSmallMsgBubbleRadius).value());appearance->addWidget(compact);button(appearance,"Применить оформление",[=]{if(!guard)return;for(auto i=draft->begin();i!=draft->end();++i)SetPolicy(owner,i.key(),i.value());base::options::lookup<bool>(Ui::kOptionUseSmallMsgBubbleRadius).set(compact->isChecked()||preset->currentIndex()>=2);if(preset->currentIndex()==1){QFile input(":/nyx/night.tdesktop-theme");QDir().mkpath(cWorkingDir()+"tdata/nyx");const auto path=cWorkingDir()+"tdata/nyx/nyx-night.tdesktop-theme";QSaveFile out(path);if(input.open(QIODevice::ReadOnly)&&out.open(QIODevice::WriteOnly)){const auto bytes=input.readAll();if(out.write(bytes)==bytes.size()&&out.commit()&&Window::Theme::Apply(path))Window::Theme::KeepApplied();}}QMessageBox::information(dialog,"Nyxgram",QString::fromUtf8("Параметры применены. Для полного обновления геометрии и формы пузырей перезапустите клиент."));});button(appearance,"Нативные настройки оформления и шрифта",[=]{if(guard)if(auto w=Core::App().activeWindow();w&&w->sessionController())w->sessionController()->showSettings(Settings::Chat::Id());});render();Note(appearance,QString::fromUtf8("До нажатия «Применить» переписка не изменяется. Иконки, тема и заставка находятся в основном окне Nyxgram."));appearance->addStretch();
-
- auto other=tab("Обновления / настройки");check(other,"Проверять обновления Nyxgram","autoUpdates",true);button(other,"Проверить обновления Windows",[]{CheckDesktopUpdates(true);});button(other,"Экспортировать настройки",[=]{if(guard)Transfer(dialog,owner,false);});button(other,"Импортировать настройки",[=]{if(guard)Transfer(dialog,owner,true);});button(other,"Сбросить настройки возможностей",[=]{if(!guard||QMessageBox::question(dialog,"Nyxgram",QString::fromUtf8("Сбросить параметры, не удаляя аккаунт и локальную историю?"))!=QMessageBox::Yes)return;for(const auto &key:ExportKeys())Store().remove(Key(owner,key));Store().sync();ApplyPerformance();dialog->close();});other->addStretch();auto close=new QPushButton(QString::fromUtf8("Закрыть"));main->addWidget(close);QObject::connect(close,&QPushButton::clicked,dialog,&QDialog::close);dialog->show();
+void SetNumberPolicy(quint64 owner, const QString &key, int value) {
+ if (!owner) return; Store().setValue(Key(owner,key),value); Store().sync();
+}
+void TransferSettings(QWidget *parent, Main::Session *session, bool import) {
+ if (session && ActiveFeatureSession()==session) Transfer(parent,session->uniqueId(),import);
+}
+void ResetFeatureSettings(quint64 owner) {
+ for (const auto &key:ExportKeys()) Store().remove(Key(owner,key));
+ Store().sync(); ApplyPerformance();
+}
+void ShowFeatures(QWidget *parent) { Q_UNUSED(parent); ShowSettings(); }
+void ShowSavedProfiles(QWidget *parent, Main::Session *session) {
+ if (!session || ActiveFeatureSession()!=session) return;
+ const auto owner=session->uniqueId(); const auto guard=base::make_weak(session);
+ if(!guard)return;QMenu menu;for(const auto &raw:Store().value(Key(owner,"profiles")).toStringList()){const auto peer=guard->data().peer(PeerId(raw.toULongLong()));auto sub=menu.addMenu(peer->name());sub->addAction(QString::fromUtf8("Открыть профиль"),[=]{if(guard)if(auto w=Core::App().activeWindow();w&&w->sessionController()&& &w->sessionController()->session()==guard.get())w->sessionController()->showPeerInfo(peer);});sub->addAction(QString::fromUtf8("Скопировать ID"),[=]{if(guard)QGuiApplication::clipboard()->setText(ProfileId(peer));});sub->addAction(QString::fromUtf8("Удалить закладку"),[=]{auto pins=Store().value(Key(owner,"profiles")).toStringList();pins.removeAll(raw);Store().setValue(Key(owner,"profiles"),pins);Store().sync();});}menu.exec(QCursor::pos());
+}
+void ChangeArchivePin(QWidget *parent, Main::Session *session) {
+ Q_UNUSED(parent);
+ if (!ArchiveController(session)) return;
+ const auto guard=base::make_weak(session); const auto owner=session->uniqueId();
+ RequestArchiveAccess(session,[=] {
+  if (!guard || !ArchiveController(guard.get())) return;
+  NativePinBox(guard.get(),QString::fromUtf8("PIN локальной истории"),true,[=](const QString &pin) {
+   if (!guard || !ArchiveController(guard.get()) || !ArchiveAllowed(owner)) return false;
+   QByteArray salt(24,0); for (auto &c:salt) c=char(QRandomGenerator::system()->generate());
+   Store().setValue(Key(owner,"pinSalt"),salt.toBase64());
+   Store().setValue(Key(owner,"pinHash"),PinHash(pin,salt).toBase64());
+   SetPolicy(owner,"protectArchive",true); unlocked[owner]=crl::now()+300000; return true;
+  });
+ });
+}
+void DisableArchivePin(QWidget *parent, Main::Session *session) {
+ Q_UNUSED(parent);
+ if (!ArchiveController(session)) return;
+ const auto guard=base::make_weak(session); const auto owner=session->uniqueId();
+ RequestArchiveAccess(session,[=] {
+  if (!guard || !ArchiveController(guard.get()) || !ArchiveAllowed(owner)) return;
+  SetPolicy(owner,"protectArchive",false); unlocked.remove(owner);
+ });
 }
 }

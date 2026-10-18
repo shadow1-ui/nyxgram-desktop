@@ -1529,6 +1529,8 @@ PRIVATE
     settings/settings_intro.h
     settings/settings_local_passcode.cpp
     settings/settings_local_passcode.h
+    settings/settings_nyxgram.cpp
+    settings/settings_nyxgram.h
     settings/settings_main.cpp
     settings/settings_main.h
     settings/settings_notifications.cpp
@@ -2170,6 +2172,7 @@ endif()
 # Compile Nyxgram's own modules before the large Telegram executable.
 # Use exactly Telegram's include paths, definitions and linked usage requirements.
 add_library(nyx_compile_check OBJECT EXCLUDE_FROM_ALL
+    ${src_loc}/settings/settings_nyxgram.cpp
     ${src_loc}/history/view/history_view_bottom_info.cpp
     ${src_loc}/media/player/media_player_widget.cpp
     ${src_loc}/media/player/media_player_panel.cpp
@@ -2224,7 +2227,7 @@ if (NOT DEFINED NYXGRAM_BUILD_NUMBER)
 endif()
 target_compile_definitions(Telegram PRIVATE NYXGRAM_BUILD_NUMBER=${NYXGRAM_BUILD_NUMBER})
 if (MSVC)
-    set_source_files_properties(${src_loc}/nyx/nyx_features.cpp ${src_loc}/nyx/nyx_history.cpp ${src_loc}/nyx/nyx_updates.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
+    set_source_files_properties(${src_loc}/settings/settings_nyxgram.cpp ${src_loc}/nyx/nyx_features.cpp ${src_loc}/nyx/nyx_history.cpp ${src_loc}/nyx/nyx_updates.cpp PROPERTIES COMPILE_OPTIONS "/utf-8")
 endif()
 
 if (MSVC)
