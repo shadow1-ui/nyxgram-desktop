@@ -1653,7 +1653,13 @@ bool ChatWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
-	if (!Nyxgram::ConfirmMedia(document, _peer->id.value, messageToSend.action.options.nyxMediaApproved)) return false;
+	const auto nyxTarget = _peer ? _peer->id.value : 0;
+	const auto nyxReply = replyTo();
+	if (!Nyxgram::ConfirmMedia(document, nyxTarget, messageToSend.action.options.nyxMediaApproved, crl::guard(this, [=] {
+		if (!_peer || _peer->id.value != nyxTarget || replyTo() != nyxReply) return;
+		auto copy = messageToSend; copy.action.options.nyxMediaApproved = true;
+		sendExistingDocument(document, std::move(copy), localId);
+	}))) return false;
 	messageToSend.action.options.nyxMediaApproved = true;
 
 	const auto error = Data::RestrictionError(
@@ -1749,7 +1755,13 @@ void ChatWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
-	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), _peer->id.value, options.nyxMediaApproved)) return ;
+	const auto nyxTarget = _peer ? _peer->id.value : 0;
+	const auto nyxReply = replyTo();
+	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), nyxTarget, options.nyxMediaApproved, crl::guard(this, [=] {
+		if (!_peer || _peer->id.value != nyxTarget || replyTo() != nyxReply) return;
+		auto copy = options; copy.nyxMediaApproved = true;
+		sendInlineResult(result, bot, copy, localMessageId);
+	}))) return;
 	options.nyxMediaApproved = true;
 
 	const auto withPaymentApproved = [=](int approved) {
@@ -1769,7 +1781,7 @@ void ChatWidget::sendInlineResult(
 	action.generateLocal = true;
 	session().api().sendInlineResult(
 		bot,
-		result.get(),
+		result,
 		action,
 		localMessageId);
 

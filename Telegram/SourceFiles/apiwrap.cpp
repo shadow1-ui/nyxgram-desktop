@@ -4176,11 +4176,17 @@ void ApiWrap::sendBotStart(
 
 void ApiWrap::sendInlineResult(
 		not_null<UserData*> bot,
-		not_null<InlineBots::Result*> data,
+		std::shared_ptr<InlineBots::Result> data,
 		SendAction action,
 		std::optional<MsgId> localMessageId,
 		Fn<void(bool)> done) {
-	if (!Nyxgram::ConfirmMedia(data->nyxPreviewDocument(), action.history->peer->id.value, action.options.nyxMediaApproved)) { if (done) done(false); return; }
+	if (!data) { if (done) done(false); return; }
+	const auto nyxOwner=base::make_weak(_session);
+	if (!Nyxgram::ConfirmMedia(data->nyxPreviewDocument(), action.history->peer->id.value, action.options.nyxMediaApproved, [=] {
+		if (!nyxOwner) return;
+		auto copy=action;copy.options.nyxMediaApproved=true;
+		nyxOwner->api().sendInlineResult(bot,data,copy,localMessageId,done);
+	}, [=] { if (nyxOwner && done) done(false); })) return;
 	action.options.nyxMediaApproved = true;
 
 	sendAction(action);

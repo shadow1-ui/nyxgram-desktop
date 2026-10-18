@@ -38,9 +38,11 @@ constexpr auto kPremiumDownscale = 1.25;
 
 MediaPreviewWidget::MediaPreviewWidget(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	bool embedded)
 : RpWidget(parent)
 , _controller(controller)
+, _embedded(embedded)
 , _emojiSize(Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	_controller->session().downloaderTaskFinished(
@@ -99,7 +101,10 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	if (!_a_shown.animating()) {
 		if (_hiding) {
 			hide();
-			_controller->disableGifPauseReason(Window::GifPauseReason::MediaPreview);
+			if (_pauseReasonEnabled) {
+				_controller->disableGifPauseReason(Window::GifPauseReason::MediaPreview);
+				_pauseReasonEnabled = false;
+			}
 			return;
 		}
 	} else {
@@ -107,7 +112,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 //		w = qMax(qRound(w * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(w % 2), 1);
 //		h = qMax(qRound(h * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(h % 2), 1);
 	}
-	p.fillRect(r, st::stickerPreviewBg);
+	p.fillRect(r, _embedded ? st::boxBg : st::stickerPreviewBg);
 	const auto position = innerPosition({ w, h });
 	if (image.isNull()) {
 		p.drawPixmap(position, pixmap);
@@ -145,6 +150,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 }
 
 void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
+	_cachedSize = QSize();
 	update();
 }
 
@@ -211,6 +217,7 @@ void MediaPreviewWidget::startShow() {
 		if (isHidden()) {
 			show();
 			_controller->enableGifPauseReason(Window::GifPauseReason::MediaPreview);
+			_pauseReasonEnabled = true;
 		}
 		_hiding = false;
 		_a_shown.start([=] { update(); }, 0., 1., st::stickerPreviewDuration);
@@ -292,6 +299,11 @@ QSize MediaPreviewWidget::currentDimensions() const {
 		} else {
 			box = QSize(2 * st::maxStickerSize, 2 * st::maxStickerSize);
 		}
+	}
+	if (_embedded) {
+		const auto padding = style::ConvertScale(24);
+		const auto available = QSize(qMax(1, width() - 2 * padding), qMax(1, height() - 2 * padding));
+		box = box.boundedTo(available);
 	}
 	result = QSize(qMax(style::ConvertScale(result.width()), 1), qMax(style::ConvertScale(result.height()), 1));
 	if (result.width() > box.width()) {
@@ -534,6 +546,7 @@ void MediaPreviewWidget::clipCallback(
 }
 
 MediaPreviewWidget::~MediaPreviewWidget() {
+ if (_pauseReasonEnabled) _controller->disableGifPauseReason(Window::GifPauseReason::MediaPreview);
 }
 
 } // namespace Window

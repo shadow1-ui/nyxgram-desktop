@@ -18,8 +18,13 @@ void DisableArchivePin(QWidget *parent, Main::Session *session);
 void ShowProfileMenu(PeerData *peer);
 QString ProfileId(PeerData *peer);
 QString ProfileRow(PeerData *peer);
-bool ConfirmMedia(DocumentData *document, quint64 peer, bool approved=false);
-bool ConfirmCall(quint64 owner, const QString &name, bool video);
+// Returns true only when no prompt is needed. Otherwise the guarded callback is
+// invoked once, asynchronously, only after an explicit native Send action.
+bool ConfirmMedia(DocumentData *document, quint64 peer, bool approved, Fn<void()> confirmed, Fn<void()> cancelled=nullptr);
+void ShowNotice(const QString &text);
+void AskConfirmation(quint64 owner, const QString &title, const QString &text,
+ const QString &confirmText, Fn<void()> confirmed);
+bool ConfirmCall(quint64 owner, const QString &name, bool video, bool approved, Fn<void()> confirmed);
 void ApplyPerformance();
 void ApplySessionFeatures(Main::Session *session);
 bool ArchiveAllowed(quint64 owner);

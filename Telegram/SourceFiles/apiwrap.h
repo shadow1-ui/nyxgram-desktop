@@ -371,7 +371,7 @@ public:
 		const QString &startTokenForChat = QString());
 	void sendInlineResult(
 		not_null<UserData*> bot,
-		not_null<InlineBots::Result*> data,
+		std::shared_ptr<InlineBots::Result> data,
 		SendAction action,
 		std::optional<MsgId> localMessageId,
 		Fn<void(bool)> done = nullptr);

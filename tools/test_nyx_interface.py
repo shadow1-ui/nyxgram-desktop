@@ -59,16 +59,41 @@ check('!UnsupportedSnapshot(previous)' in archive,'keep recoverable snapshot bef
 check('item->applyEdition(std::move(edition))' in archive,'restore captured content into retained live item')
 check('if (localDeleted)' in read('history/history_item.cpp'),'local fallback does not suppress unsupported notices for ordinary messages')
 check('Нажатие строки ID/DC копирует только ID.' not in s,'verbose technical text removed')
+# All Nyxgram-owned controls are native. OS file choosers and the optional splash
+# are intentional exceptions, not media/settings/confirmation windows.
+for module in ['nyx/nyx_features.cpp','nyx/nyx_settings.cpp','nyx/nyx_history.cpp','nyx/nyx_updates.cpp']:
+ ui=read(module)
+ for legacy in ['QDialog','QMessageBox','QMenu','QInputDialog','QDialogButtonBox','.exec(']:
+  check(legacy not in ui,'no legacy system UI: '+module+' '+legacy)
+features=read('nyx/nyx_features.cpp')
+check('object_ptr<Window::MediaPreviewWidget>(box,controller,true)' in features,'native embedded media preview')
+check('const auto sent=box->lifetime().make_state<bool>(false)' in features,'one explicit approval per send')
+check('crl::on_main(controller' in features,'no nested event loop in send confirmation')
+preview=read('window/window_media_preview.cpp')
+check('_embedded ? st::boxBg : st::stickerPreviewBg' in preview,'preview follows native box palette')
+check('box = box.boundedTo(available)' in preview,'preview stays inside the native card')
+for module in ['history/history_widget.cpp','history/view/history_view_chat_section.cpp','history/view/history_view_scheduled_section.cpp','media/stories/media_stories_reply.cpp','settings/business/settings_shortcut_messages.cpp']:
+ ui=read(module)
+ check(ui.count('Nyxgram::ConfirmMedia(')==2,'document + inline native approval hooks: '+module)
+ check(ui.count('const auto nyxTarget =')==2,'both delayed sends capture target: '+module)
+check('std::shared_ptr<InlineBots::Result> data' in read('apiwrap.h'),'inline result owned through asynchronous confirmation')
+check('if (!*sent && cancelled) cancelled()' in features,'cancelled low-level sends complete without sending')
+check('replyTo() != nyxReply' in read('history/history_widget.cpp'),'no delayed send into changed reply/topic')
+check('_data != nyxTarget' in read('media/stories/media_stories_reply.cpp'),'no delayed send into changed story')
 print(f'PASS: {checks} desktop interface source-integration checks (not runtime tests)')
 parser=Parser(Language(tree_sitter_cpp.language()))
 files=['history/view/history_view_bottom_info.cpp','history/view/history_view_message.cpp',
  'info/media/info_media_list_widget.cpp','mainwidget.cpp','media/player/media_player_panel.cpp',
  'media/player/media_player_panel.h','media/player/media_player_widget.cpp','media/player/media_player_widget.h',
  'nyx/nyx_features.cpp','nyx/nyx_settings.cpp','nyx/nyx_settings.h',
- 'settings/settings_nyxgram.cpp','settings/settings_nyxgram.h','nyx/nyx_history.cpp','history/history_item.cpp']
+ 'settings/settings_nyxgram.cpp','settings/settings_nyxgram.h','nyx/nyx_history.cpp','history/history_item.cpp',
+ 'window/window_media_preview.cpp','window/window_media_preview.h','nyx/nyx_updates.cpp','calls/calls_instance.cpp','calls/calls_instance.h',
+ 'api/api_sending.cpp','apiwrap.cpp','inline_bots/bot_attach_web_view.cpp']
 for f in files:
  tree=parser.parse((r/f).read_bytes())
  check(not tree.root_node.has_error,'C++ parser syntax: '+f)
+# apiwrap.h also has an unchanged parser ambiguity at its enum parameter; its
+# changed shared-ownership declaration is checked above, not treated as a clean parse.
 # info_profile_actions.cpp contains an existing preprocessor/parser ambiguity: the changed
 # label is checked separately, not misreported as a fresh successful full-file parse.
 check('rpl::single(QString::fromUtf8("Информация"))' in read('info/profile/info_profile_actions.cpp'),'compact profile heading')
@@ -109,9 +134,9 @@ print('PASS: five Qt 5/lib_ui Windows compiler regression guards')
 # Ensure every newly changed rendering/player integration unit gets a native preflight.
 cmake=(r.parent/'CMakeLists.txt').read_text()
 preflight=cmake[cmake.index('add_library(nyx_compile_check OBJECT'):cmake.index('target_link_libraries(nyx_compile_check')]
-for unit in ['settings/settings_nyxgram.cpp','history/view/history_view_bottom_info.cpp','media/player/media_player_widget.cpp','media/player/media_player_panel.cpp','info/media/info_media_list_widget.cpp','mainwidget.cpp']:
+for unit in ['apiwrap.cpp','api/api_sending.cpp','inline_bots/bot_attach_web_view.cpp','window/window_media_preview.cpp','calls/calls_instance.cpp','settings/settings_nyxgram.cpp','history/view/history_view_bottom_info.cpp','media/player/media_player_widget.cpp','media/player/media_player_panel.cpp','info/media/info_media_list_widget.cpp','mainwidget.cpp']:
  check('${src_loc}/'+unit in preflight,'native compile preflight: '+unit)
-print('PASS: all six native settings/rendering/player units included in native C++ preflight')
+print('PASS: all eleven native UI/API/call/rendering/player units included in native C++ preflight')
 
 # Manual stable publication is explicit and remains downstream of successful compilation.
 workflow=(r.parents[1]/'.github/workflows/win.yml').read_text()

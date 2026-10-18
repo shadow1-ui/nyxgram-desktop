@@ -293,7 +293,12 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
-	if (!Nyxgram::ConfirmMedia(document, message.action.history->peer->id.value, message.action.options.nyxMediaApproved)) return;
+	const auto nyxOwner=base::make_weak(&document->session());
+	if (!Nyxgram::ConfirmMedia(document, message.action.history->peer->id.value, message.action.options.nyxMediaApproved, [=] {
+		if (!nyxOwner) return;
+		auto copy=message;copy.action.options.nyxMediaApproved=true;
+		SendExistingDocument(std::move(copy),document,localMessageId);
+	})) return;
 	message.action.options.nyxMediaApproved = true;
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(

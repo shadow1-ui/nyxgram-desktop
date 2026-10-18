@@ -7711,7 +7711,13 @@ void HistoryWidget::fieldTabbed() {
 }
 
 void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
-	if (_peer && !Nyxgram::ConfirmMedia(result.result->nyxPreviewDocument(), _peer->id.value, result.options.nyxMediaApproved)) return;
+	const auto nyxTarget = _peer ? _peer->id.value : 0;
+	const auto nyxReply = replyTo();
+	if (!Nyxgram::ConfirmMedia(result.result->nyxPreviewDocument(), nyxTarget, result.options.nyxMediaApproved, crl::guard(this, [=] {
+		if (!_peer || _peer->id.value != nyxTarget || replyTo() != nyxReply) return;
+		auto copy = result; copy.options.nyxMediaApproved = true;
+		sendInlineResult(std::move(copy));
+	}))) return;
 	result.options.nyxMediaApproved = true;
 
 	if (!_peer || !_canSendMessages) {
@@ -7744,7 +7750,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 		result.messageSendingFrom);
 	session().api().sendInlineResult(
 		result.bot,
-		result.result.get(),
+		result.result,
 		action,
 		result.messageSendingFrom.localId);
 
@@ -8331,7 +8337,13 @@ bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
-	if (_peer && !Nyxgram::ConfirmMedia(document, _peer->id.value, messageToSend.action.options.nyxMediaApproved)) return false;
+	const auto nyxTarget = _peer ? _peer->id.value : 0;
+	const auto nyxReply = replyTo();
+	if (!Nyxgram::ConfirmMedia(document, nyxTarget, messageToSend.action.options.nyxMediaApproved, crl::guard(this, [=] {
+		if (!_peer || _peer->id.value != nyxTarget || replyTo() != nyxReply) return;
+		auto copy = messageToSend; copy.action.options.nyxMediaApproved = true;
+		sendExistingDocument(document, std::move(copy), localId);
+	}))) return false;
 	messageToSend.action.options.nyxMediaApproved = true;
 
 	const auto error = _peer

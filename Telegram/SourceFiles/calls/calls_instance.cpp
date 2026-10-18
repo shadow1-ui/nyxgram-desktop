@@ -197,8 +197,10 @@ Instance::~Instance() {
 	}
 }
 
-void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
-	if (!Nyxgram::ConfirmCall(user->session().uniqueId(), user->name(), video)) return;
+void Instance::startOutgoingCall(not_null<UserData*> user, bool video, bool nyxApproved) {
+	if (!Nyxgram::ConfirmCall(user->session().uniqueId(), user->name(), video, nyxApproved, crl::guard(this, [=] {
+		startOutgoingCall(user, video, true);
+	}))) return;
 	if (activateCurrentCall()) {
 		return;
 	}

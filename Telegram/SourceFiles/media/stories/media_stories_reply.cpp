@@ -321,7 +321,12 @@ bool ReplyArea::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
-	if (!Nyxgram::ConfirmMedia(document, _data.peer->id.value, messageToSend.action.options.nyxMediaApproved)) return false;
+	const auto nyxTarget = _data;
+	if (!Nyxgram::ConfirmMedia(document, nyxTarget.peer ? nyxTarget.peer->id.value : 0, messageToSend.action.options.nyxMediaApproved, crl::guard(this, [=] {
+		if (_data != nyxTarget || !_data.peer) return;
+		auto copy = messageToSend; copy.action.options.nyxMediaApproved = true;
+		sendExistingDocument(document, std::move(copy), localId);
+	}))) return false;
 	messageToSend.action.options.nyxMediaApproved = true;
 
 	Expects(_data.peer != nullptr);
@@ -414,7 +419,12 @@ void ReplyArea::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
-	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), _data.peer->id.value, options.nyxMediaApproved)) return ;
+	const auto nyxTarget = _data;
+	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), nyxTarget.peer ? nyxTarget.peer->id.value : 0, options.nyxMediaApproved, crl::guard(this, [=] {
+		if (_data != nyxTarget || !_data.peer) return;
+		auto copy = options; copy.nyxMediaApproved = true;
+		sendInlineResult(result, bot, copy, localMessageId);
+	}))) return;
 	options.nyxMediaApproved = true;
 
 	auto action = prepareSendAction(options);
@@ -435,7 +445,7 @@ void ReplyArea::sendInlineResult(
 
 	session().api().sendInlineResult(
 		bot,
-		result.get(),
+		result,
 		action,
 		localMessageId);
 

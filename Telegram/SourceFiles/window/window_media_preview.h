@@ -29,7 +29,8 @@ class MediaPreviewWidget final : public Ui::RpWidget {
 public:
 	MediaPreviewWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		bool embedded = false);
 
 	void showPreview(
 		Data::FileOrigin origin,
@@ -60,6 +61,8 @@ private:
 	[[nodiscard]] QRect updateArea() const;
 
 	not_null<Window::SessionController*> _controller;
+	const bool _embedded = false;
+	bool _pauseReasonEnabled = false;
 
 	Ui::Animations::Simple _a_shown;
 	bool _hiding = false;

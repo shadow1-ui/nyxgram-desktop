@@ -877,7 +877,12 @@ void ScheduledWidget::edit(
 bool ScheduledWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend) {
-	if (!Nyxgram::ConfirmMedia(document, _history->peer->id.value, messageToSend.action.options.nyxMediaApproved)) return false;
+	const auto nyxTarget = _history->peer ? _history->peer->id.value : 0;
+	if (!Nyxgram::ConfirmMedia(document, nyxTarget, messageToSend.action.options.nyxMediaApproved, crl::guard(this, [=] {
+		if (!_history->peer || _history->peer->id.value != nyxTarget) return;
+		auto copy = messageToSend; copy.action.options.nyxMediaApproved = true;
+		sendExistingDocument(document, std::move(copy));
+	}))) return false;
 	messageToSend.action.options.nyxMediaApproved = true;
 
 	const auto error = Data::RestrictionError(
@@ -943,14 +948,19 @@ void ScheduledWidget::sendInlineResult(
 		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options) {
-	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), _history->peer->id.value, options.nyxMediaApproved)) return ;
+	const auto nyxTarget = _history->peer ? _history->peer->id.value : 0;
+	if (!Nyxgram::ConfirmMedia(result->nyxPreviewDocument(), nyxTarget, options.nyxMediaApproved, crl::guard(this, [=] {
+		if (!_history->peer || _history->peer->id.value != nyxTarget) return;
+		auto copy = options; copy.nyxMediaApproved = true;
+		sendInlineResult(result, bot, copy);
+	}))) return;
 	options.nyxMediaApproved = true;
 
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
 	session().api().sendInlineResult(
 		bot,
-		result.get(),
+		result,
 		action,
 		std::nullopt);
 

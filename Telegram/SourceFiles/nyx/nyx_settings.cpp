@@ -35,7 +35,6 @@
 #include <QtGui/QScreen>
 #include <QtGui/QMouseEvent>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QMessageBox>
 #include <QtWidgets/QSplashScreen>
 
 namespace Nyxgram {
@@ -143,7 +142,7 @@ bool ToggleLocalPin(quint64 owner, quint64 peer) {
  auto &state = ReadPins(owner); const auto id = QString::number(peer);
  if (!state.ids.removeOne(id)) {
   if (state.ids.size() >= 500) {
-   QMessageBox::information(QApplication::activeWindow(),"Nyxgram",QString::fromUtf8("Вы можете добавить до 500 локальных закреплений. Уберите одно из существующих."));
+   ShowNotice(QString::fromUtf8("Вы можете добавить до 500 локальных закреплений. Уберите одно из существующих."));
    return false;
   }
   state.ids.prepend(id);

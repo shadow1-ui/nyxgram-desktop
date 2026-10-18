@@ -20,7 +20,7 @@ s=read('history/history_item.cpp');a=s.index('const auto oldId = std::exchange(i
 verify('MessageFlag::Local' in s[a:b],'clear local flag before remembering server ID')
 verify(s.count('Nyxgram::RestoreLocalEmoji(this);')==2,'restore after both sent response variants')
 s=read('nyx/nyx_features.cpp')
-for key in ['deriveKeyPbkdf2','210000','pinRetry','HideLockedSessions','featureSessions','startupFolder','QDialogButtonBox::RejectRole']:
+for key in ['deriveKeyPbkdf2','210000','pinRetry','HideLockedSessions','featureSessions','startupFolder','Fn<void()> confirmed']:
  verify(key in s,key)
 verify('!session->premium()' in read('api/api_text_entities.cpp'),'real server entitlement required')
 verify('hidePhone' in read('settings/settings_main.cpp'),'own phone hidden in settings suggestion')

@@ -2172,6 +2172,11 @@ endif()
 # Compile Nyxgram's own modules before the large Telegram executable.
 # Use exactly Telegram's include paths, definitions and linked usage requirements.
 add_library(nyx_compile_check OBJECT EXCLUDE_FROM_ALL
+    ${src_loc}/apiwrap.cpp
+    ${src_loc}/api/api_sending.cpp
+    ${src_loc}/inline_bots/bot_attach_web_view.cpp
+    ${src_loc}/window/window_media_preview.cpp
+    ${src_loc}/calls/calls_instance.cpp
     ${src_loc}/settings/settings_nyxgram.cpp
     ${src_loc}/history/view/history_view_bottom_info.cpp
     ${src_loc}/media/player/media_player_widget.cpp

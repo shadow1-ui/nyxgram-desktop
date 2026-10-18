@@ -1898,7 +1898,7 @@ void WebViewInstance::botSendPreparedMessage(
 			for (const auto &thread : list) {
 				bot->session().api().sendInlineResult(
 					bot,
-					parsed.get(),
+					parsed,
 					Api::SendAction(thread, options),
 					std::nullopt,
 					done);

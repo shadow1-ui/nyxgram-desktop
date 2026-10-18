@@ -53,3 +53,19 @@ Source checks now cover native Section factories/routing, no standalone main/fea
 ### Native correction build 14 compiler follow-up
 
 Windows preflight found two root defects in the new native forms: `PasswordInput` derives from `MaskedInputField`, not `RpWidget`, and cannot be passed directly to `GenericBox::addRow`; the archive's `st::boxLabel` requires `style_layers.h`. Both PIN fields now use the existing `Settings::CloudPassword::AddPasswordField` layout adapter (UI only; no cloud-password API is invoked). Added the explicit layers-style include and three source regression guards. A fresh native build is required; local parser checks alone cannot verify C++ types.
+
+## Native media-confirmation and remaining UI audit
+
+User screenshot of build 15 exposed an overlooked standalone Qt media-send dialog. Removed Nyxgram-owned QDialog/QMessageBox/QMenu and blocking exec paths from all four custom UI modules. Settings, PIN, history, media confirmation, calls, profile/bookmarks, import and update notices now use Telegram Settings sections or GenericBox layers. Only OS file choosers and the explicitly enabled startup splash remain intentional system UI.
+
+Media/GIF confirmation now uses a native embedded MediaPreviewWidget row with a theme-derived box background and bounded artwork. Ten composer document/inline paths resume only through weak-guarded explicit approval. The two lower-level sending gates also support asynchronous approval; inline results use shared ownership so closing an inline panel cannot invalidate a pending result. Cancellation completes API callbacks without sending. Calls use the same guarded native approval instead of QMessageBox. Preview pause state is released on destruction and changed renderer/API/call units are included in native preflight.
+
+Local checks: 89 interface source guards, 23 C++ parser units, 34 existing integration guards, palette/resource checks and git diff --check. apiwrap.h has an unchanged parser ambiguity at its enum parameter; its changed signature is checked separately. These are not a compiler or rendered Windows QA.
+
+Required Windows acceptance:
+- [ ] Sticker/static/animated/video sticker and GIF preview; light/dark/custom themes; 100–200% DPI; media remains inside the card, native buttons not clipped, no extra taskbar window.
+- [ ] Confirm once/double click/Enter sends once; Cancel/Escape/outside close sends nothing. Webview callback completes on cancellation; restricted and paid-send flows remain enforced.
+- [ ] Change account, chat, topic/reply and story while the card is active; close originating widget or application window. No stale recipient, use-after-free or incorrect send.
+- [ ] Normal chats, topics/monoforums, scheduled messages, stories, business shortcuts, inline bot results and prepared webview results.
+- [ ] Calls, import validation, export failure, update notices, profile copy/bookmarks and pin limit all follow Telegram's theme without standard Qt message boxes.
+- [ ] Preview animations stop when closing; normal hover previews still work and GIF pause state recovers.

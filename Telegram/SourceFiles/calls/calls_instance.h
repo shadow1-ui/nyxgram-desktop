@@ -80,7 +80,7 @@ public:
 	Instance();
 	~Instance();
 
-	void startOutgoingCall(not_null<UserData*> user, bool video);
+	void startOutgoingCall(not_null<UserData*> user, bool video, bool nyxApproved = false);
 	void startOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
